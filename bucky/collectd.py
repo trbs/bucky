@@ -4,6 +4,7 @@ import logging
 import os
 import socket
 import struct
+import threading
 
 
 log = logging.getLogger(__name__)
@@ -15,6 +16,9 @@ class CollectDError(Exception):
     def __str__(self):
         return self.mesg
 
+
+class ConfigError(CollectDError):
+    pass
 
 class ProtocolError(CollectDError):
     pass
@@ -29,8 +33,8 @@ class ServerErrror(CollectDError):
 
 
 class CollectDTypes(object):
-    def __init__(self, types_db="/usr/share/collectd/types.db"):
-        self.types_db = types_db
+    def __init__(self, typesdb=None):
+        self.typesdb = typesdb
         self.types = {}
         self.type_ranges = {}
         self._load_types()
@@ -49,6 +53,17 @@ class CollectDTypes(object):
                 if not line.strip():
                     continue
                 self._add_type_line(line)
+
+    def _fname(self):
+        if self.typesdb is not None:
+            return self.typesdb
+        ret = "/usr/share/collectd/types.db"
+        if os.path.exists(ret):
+            return ret
+        ret = "/usr/local/share/collectd/types.db"
+        if os.path.exists(ret):
+            return ret
+        raise ConfigError("Unable to locate types.db")
 
     def _add_type_line(self, line):
         types = {
@@ -77,10 +92,10 @@ class CollectDParser(object):
         self.types = CollectDTypes()
 
     def parse(self, data):
-        for mesg in self.parse_messages(data):
-            yield mesg
+        for sample in self.parse_samples(data):
+            yield sample
 
-    def parse_messages(self, data):
+    def parse_samples(self, data):
         types = {
             0x0000: self._parse_string("host"),
             0x0001: self._parse_time("time"),
@@ -93,14 +108,19 @@ class CollectDParser(object):
             0x0007: self._parse_time("interval"),
             0x0009: self._parse_time_hires("interval")
         }
-        mesg = {}
+        sample = {}
         for (ptype, data) in self.parse_data(data):
             if ptype not in types:
                 log.debug("Ignoring part type: 0x%02x" % ptype)
                 continue
-            types[ptype](mesg, data)
-            if ptype == 0x0006:
-                yield copy.deepcopy(mesg)
+            if ptype != 0x0006:
+                types[ptype](sample, data)
+                continue
+            for vname, vtype, val in self.parse_values(sample["type"], data):
+                sample["value_name"] = vname
+                sample["value_type"] = vtype
+                sample["value"] = val
+                yield copy.deepcopy(sample)
 
     def parse_data(self, data):
         types = set([
@@ -121,68 +141,177 @@ class CollectDParser(object):
             part_data, data = data[:part_len], data[part_len:]
             yield (part_type, part_data)
 
+    def parse_values(self, stype, data):
+        types = {0: "!Q", 1: "<d", 2: "!q", 3: "!Q"}
+        (nvals,) = struct.unpack("!H", data[:2])
+        data = data[2:]
+        if len(data) != 9 * nvals:
+            raise ProtocolError("Invalid value structure length.")
+        vtypes = self.types.get(stype)
+        if nvals != len(vtypes):
+            raise ProtocolError("Values different than types.db info.")
+        for i in range(nvals):
+            (vtype,) = struct.unpack("B", data[i])
+            if vtype != vtypes[i][1]:
+                raise ProtocolError("Type mismatch with types.db")
+        data = data[nvals:]
+        for i in range(nvals):
+            vdata, data = data[:8], data[8:]
+            (val,) = struct.unpack(types[vtypes[i][1]], vdata)
+            yield vtypes[i][0], vtypes[i][1], val
+
     def _parse_string(self, name):
-        def _parser(mesg, data):
+        def _parser(sample, data):
             if data[-1] != '\0':
                 raise ProtocolError("Invalid string detected.")
-            mesg[name] = data[:-1]
+            sample[name] = data[:-1]
         return _parser
 
     def _parse_time(self, name):
-        def _parser(mesg, data):
+        def _parser(sample, data):
             if len(data) != 8:
                 raise ProtocolError("Invalid time data length.")
             (val,) = struct.unpack("!Q", data)
-            mesg[name] = float(val)
+            sample[name] = float(val)
         return _parser
 
     def _parse_time_hires(self, name):
-        def _parser(mesg, data):
+        def _parser(sample, data):
             if len(data) != 8:
                 raise ProtocolError("Invalid hires time data length.")
             (val,) = struct.unpack("!Q", data)
-            mesg[name] = val * (2 ** -30)
-        return _parser
-
-    def _parse_values(self, name):
-        types = {0: "!Q", 1: "<d", 2: "!q", 3: "!Q"}
-        def _parser(mesg, data):
-            (nvals,) = struct.unpack("!H", data[:2])
-            data = data[2:]
-            if len(data) != 9 * nvals:
-                raise ProtocolError("Invalid value structure length.")
-            vtypes = self.types.get(mesg["type"])
-            if nvals != len(vtypes):
-                raise ProtocolError("Values different than types.db info.")
-            for i in range(nvals):
-                (vtype,) = struct.unpack("B", data[i])
-                if vtype != vtypes[i][1]:
-                    raise ProtocolError("Type mismatch with types.db")
-            data = data[nvals:]
-            mesg[name] = {}
-            for i in range(nvals):
-                vdata, data = data[:8], data[8:]
-                (val,) = struct.unpack(types[vtypes[i][1]], vdata)
-                mesg[name][vtypes[i][0]] = val
+            sample[name] = val * (2 ** -30)
         return _parser
 
 
-class CollectDServer(object):
-    def __init__(self, ip="0.0.0.0", port=25826):
+class CollectDConverter(object):
+    def __init__(self, prefix=None, postfix=None, replace="_",
+                        strip_duplicates=True, host_trim=None):
+        self.prefix = prefix
+        self.postfix = postfix
+        self.replace = replace
+        self.strip_dupes = strip_duplicates
+        self.host_trim = []
+        if host_trim is not None:
+            for s in host_trim:
+                s = list(reversed(p.strip() for p in s.split(".")))
+                self.strip.append(s)
+
+    def convert(self, sample):
+        stat = self.stat(sample)
+        return stat, sample["value_type"], sample["value"], int(sample["time"])
+
+    def stat(self, sample):
+        parts = []
+        if self.prefix:
+            parts.append(self.prefix)
+        self.parts.extend(self.hostname(sample.get("host", "")))
+        self.parts.extend(self.default(sample))
+        if self.postfix:
+            self.parts.append(self.postfix)
+        if self.replace is not None:
+            parts = [p.replace(".", self.replace) for p in parts]
+        if self.strip_duplicates:
+            parts = self.strip_duplicates(parts)
+        return ".".join(parts)
+
+    def hostname(self, host):
+        parts = host.split(".")
+        parts = list(reversed([p.strip() for p in parts]))
+        for s in self.strip:
+            same = True
+            for i, p in enumerate(s):
+                if p != parts[i]:
+                    same = False
+                    break
+            if same:
+                parts = parts[len(s):]
+        return parts
+
+    def default(self, sample):
+        parts = []
+        parts.append(sample["plugin"].strip())
+        if sample.get("plugin_instance"):
+            parts.append(sample["plugin_instance"].strip())
+        stype = sample.get("type", "").strip()
+        if stype and stype != "value":
+            parts.append(stype)
+        stypei = sample.get("type_instance", "").strip()
+        if stypei:
+            parts.append(stypei)
+        vname = sample.get("value_name").strip()
+        if vname and vname != "value":
+            parts.append(vname)
+        return parts
+
+    def strip_duplicates(self, parts):
+        ret = []
+        for p in parts:
+            if p != ret[-1]:
+                ret.append(p)
+        return ret
+
+
+class CollectDServer(threading.Thread):
+    def __init__(self, queue, ip="0.0.0.0", port=25826, converter_options=None):
+        log.info("Creating collectd server.")
+        converter_options = converter_options or {}
+
+        self.queue = queue
         self.parser = CollectDParser()
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.converter = CollectDConverter(**converter_options)
+        self.sock = self.init_socket(ip, port)
+        self.prev_samples = {}
+
+    def init_socket(self, ip, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             self.sock.bind((ip, port))
             log.info("Opened collectd socket %s:%s" % (ip, port))
+            return sock
         except OSError:
             raise BindError("Error opening collectd socket %s:%s." % (ip, port))
 
-    def messages(self):
+    def run(self):
         while True:
             data, addr = self.sock.recvfrom(65535)
             try:
-                for message in self.parser.parse(data):
-                    yield message
+                for sample in self.parser.parse(data):
+                    name, vtype, val, time = self.converter.convert(sample)
+                    val = self.calculate(name, vtype, val, time)
+                    if val is not None:
+                        self.queue.queue((name, val, time))
             except ProtocolError, e:
                 log.error("Protocol error: %s" % e)
+
+    def calculate(self, name, vtype, val, time):
+        handlers = {
+            0: self._calc_counter,  # counter
+            1: lambda v: v,         # gauge
+            2: self._calc_counter,  # derive
+            3: self._calc_absolute  # absolute
+        }
+        if vtype not in handlers:
+            log.error("Invalid value type %s for %s" % (vtype, name))
+            return
+        return handlers[vtype](name, val, time)
+
+    def _calc_counter(self, name, val, time):
+        # I need to figure out how to handle wrapping
+        if name not in self.prev_samples:
+            self.prev_samples[name] = (val, time)
+            return
+        pval, ptime = self.prev_samples[name]
+        self.prev_samples[name] = (val, time)
+        if val < pval:
+            return
+        return (val - pval) / (time - ptime)
+
+    def _calc_absolute(self, name, val, time):
+        if name not in self.prev_samples:
+            self.prev_samples[name] = (val, time)
+            return
+        _pval, ptime = self.prev_samples[name]
+        self.prev_samples[name] = (val, time)
+        return val / (time - ptime)
