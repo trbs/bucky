@@ -281,7 +281,7 @@ class CollectDServer(threading.Thread):
                     name, vtype, val, time = self.converter.convert(sample)
                     val = self.calculate(name, vtype, val, time)
                     if val is not None:
-                        self.queue.queue((name, val, time))
+                        self.queue.put((name, val, time))
             except ProtocolError, e:
                 log.error("Protocol error: %s" % e)
 
@@ -289,7 +289,7 @@ class CollectDServer(threading.Thread):
         handlers = {
             0: self._calc_counter,  # counter
             1: lambda v: v,         # gauge
-            2: self._calc_counter,  # derive
+            2: self._calc_derive,  # derive
             3: self._calc_absolute  # absolute
         }
         if vtype not in handlers:
@@ -299,6 +299,8 @@ class CollectDServer(threading.Thread):
 
     def _calc_counter(self, name, val, time):
         # I need to figure out how to handle wrapping
+        # Read: http://oss.oetiker.ch/rrdtool/tut/rrdtutorial.en.html
+        # and then fix later
         if name not in self.prev_samples:
             self.prev_samples[name] = (val, time)
             return
@@ -306,6 +308,15 @@ class CollectDServer(threading.Thread):
         self.prev_samples[name] = (val, time)
         if val < pval:
             return
+        return (val - pval) / (time - ptime)
+
+    def _calc_derive(self, name, val, time):
+        # Like counter, I need to figure out wrapping
+        if name not in self.prev_samples:
+            self.prev_samples[name] = (val, time)
+            return
+        pval, ptime = self.prev_samples[name]
+        self.prev_samples[name] = (val, time)
         return (val - pval) / (time - ptime)
 
     def _calc_absolute(self, name, val, time):
