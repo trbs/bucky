@@ -38,6 +38,12 @@ def main():
             cli.send(stat, value, time)
         except Queue.Empty:
             pass
+        if not cdsrv.is_alive():
+            log.error("collectd server died")
+            break
+        if not stsrv.is_alive():
+            log.error("statsd server died")
+            break
 
 
 if __name__ == '__main__':
