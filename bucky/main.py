@@ -1,10 +1,11 @@
 
 import logging
 import optparse as op
+import Queue
 
-import bucky.carbon as bcarbon
-import bucky.collectd as bcollectd
-import bucky.converter as bconverter
+import bucky.carbon as carbon
+import bucky.collectd as collectd
+import bucky.statsd as statsd
 
 
 logging.basicConfig(format="[%(levelname)s] %(message)s", level=logging.DEBUG)
@@ -21,13 +22,20 @@ def main():
     parser = op.OptionParser(usage=__usage__, option_list=options())
     opts, args = parser.parse_args()
 
-    cli = bcarbon.CarbonClient()
-    srv = bcollectd.CollectDServer()
-    cnv = bconverter.BuckyConverter()
+    sampleq = Queue.Queue()
 
-    for mesg in srv.messages():
-        for stat, value, time in cnv.convert(mesg):
-            cli.send(stat, value, time)
+    cdsrv = collectd.CollectDServer(sampleq)
+    cdsrv.start()
+
+    stsrv = statsd.StatsDServer(sampleq)
+    stsrv.start()
+
+    cli = carbon.CarbonClient()
+
+    while True:
+        stat, value, time = sampleq.get()
+        cli.send(stat, value, time)
+
 
 if __name__ == '__main__':
     try:
