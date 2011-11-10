@@ -1,0 +1,4 @@
+include .gitignore
+include LICENSE
+include README.rst
+include THANKS
