@@ -254,7 +254,6 @@ class CollectDConverter(object):
 
 class CollectDServer(threading.Thread):
     def __init__(self, queue, ip="0.0.0.0", port=25826, converter_options=None):
-        log.info("Creating collectd server.")
         converter_options = converter_options or {}
 
         self.queue = queue
