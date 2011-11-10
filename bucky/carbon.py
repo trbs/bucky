@@ -1,6 +1,9 @@
 
+import logging
 import socket
-import time
+
+
+log = logging.getLogger(__name__)
 
 
 class CarbonException(Exception):
@@ -19,14 +22,11 @@ class CarbonClient(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect((ip, port))
+            log.info("Connect to Carbon at %s:%s" % (ip, port))
         except OSError:
             raise ConnectError("Failed to connect to %s:%s" % (ip, port))
-        self.last_flush = time.time()
 
-    def send(self, stat, value, time):
-        mesg = "%s %s %s\n" % (stat, value, time)
+    def send(self, stat, value, mtime):
+        mesg = "%s %s %s\n" % (stat, value, mtime)
         self.sock.sendall(mesg)
-        if time.time() - self.last_flush > 10:
-            self.sock.flush()
-            self.last_flush = time.time()
 

@@ -29,7 +29,8 @@ class ServerErrror(CollectDError):
 
 
 class CollectDTypes(object):
-    def __init__(self):
+    def __init__(self, types_db="/usr/share/collectd/types.db"):
+        self.types_db = types_db
         self.types = {}
         self.type_ranges = {}
         self._load_types()
@@ -41,8 +42,7 @@ class CollectDTypes(object):
         return t
 
     def _load_types(self):
-        fname = os.path.join(os.path.dirname(__file__), "types.db")
-        with open(fname) as handle:
+        with open(self.types_db) as handle:
             for line in handle:
                 if line.lstrip()[:1] == "#":
                     continue
@@ -169,13 +169,12 @@ class CollectDParser(object):
 
 class CollectDServer(object):
     def __init__(self, ip="0.0.0.0", port=25826):
-        log.info("Creating collectd server.")
         self.parser = CollectDParser()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             self.sock.bind((ip, port))
-            log.info("Bound to %s:%s" % (ip, port))
+            log.info("Opened collectd socket %s:%s" % (ip, port))
         except OSError:
             raise BindError("Error opening collectd socket %s:%s." % (ip, port))
 

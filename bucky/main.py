@@ -21,14 +21,13 @@ def main():
     parser = op.OptionParser(usage=__usage__, option_list=options())
     opts, args = parser.parse_args()
 
-    #cli = bcarbon.CarbonClient()
+    cli = bcarbon.CarbonClient()
     srv = bcollectd.CollectDServer()
     cnv = bconverter.BuckyConverter()
 
     for mesg in srv.messages():
         for stat, value, time in cnv.convert(mesg):
-            #cli.send(stat, value, time)
-            print stat, value, time
+            cli.send(stat, value, time)
 
 if __name__ == '__main__':
     try:
