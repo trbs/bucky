@@ -15,6 +15,7 @@
 import copy
 import logging
 import os
+import pkg_resources
 import socket
 import struct
 import threading
@@ -43,6 +44,18 @@ class BindError(CollectDError):
 
 class ServerErrror(CollectDError):
     pass
+
+
+class CPUConverter(object):
+    PRIORITY = 0
+    def convert(self, sample):
+        print sample
+        return "foo.bar.baz"
+
+
+DEFAULT_CONVERTERS = {
+    "cpu": CPUConverter()
+}
 
 
 class CollectDTypes(object):
@@ -209,6 +222,7 @@ class CollectDConverter(object):
             for s in host_trim:
                 s = list(reversed(p.strip() for p in s.split(".")))
                 self.strip.append(s)
+        self._load_converters()
 
     def convert(self, sample):
         stat = self.stat(sample)
@@ -263,6 +277,23 @@ class CollectDConverter(object):
             if len(ret) == 0 or p != ret[-1]:
                 ret.append(p)
         return ret
+
+    def _load_converters(self):
+        group = 'bucky.collectd.converters'
+        self.converters = dict(DEFAULT_CONVERTERS)
+        for ep in pkg_resources.iter_entry_points(group):
+            name = ep.name
+            klass = ep.load()
+            if name not in self.plugins:
+                log.info("Converter: %s from %s" % (name, ep.module_name))
+                self.plugins[name] = klass()
+                continue
+            if klass.PRIORITY > self.plugins[name].PRIORITY:
+                log.info("Replacing: %s" % name)
+                log.info("Converter: %s from %s" % (name, ep.module_name))
+                self.plugins[name] = klass()
+                continue
+            log.info("Ignoring: %s from %s" % (name, ep.module_name))
 
 
 class CollectDServer(threading.Thread):
