@@ -46,7 +46,7 @@ class CollectDTypes(object):
         return t
 
     def _load_types(self):
-        with open(self.types_db) as handle:
+        with open(self._fname()) as handle:
             for line in handle:
                 if line.lstrip()[:1] == "#":
                     continue
@@ -104,7 +104,7 @@ class CollectDParser(object):
             0x0003: self._parse_string("plugin_instance"),
             0x0004: self._parse_string("type"),
             0x0005: self._parse_string("type_instance"),
-            0x0006: self._parse_values("values"),
+            0x0006: None, # handle specially
             0x0007: self._parse_time("interval"),
             0x0009: self._parse_time_hires("interval")
         }
@@ -205,10 +205,10 @@ class CollectDConverter(object):
         parts = []
         if self.prefix:
             parts.append(self.prefix)
-        self.parts.extend(self.hostname(sample.get("host", "")))
-        self.parts.extend(self.default(sample))
+        parts.extend(self.hostname(sample.get("host", "")))
+        parts.extend(self.default(sample))
         if self.postfix:
-            self.parts.append(self.postfix)
+            parts.append(self.postfix)
         if self.replace is not None:
             parts = [p.replace(".", self.replace) for p in parts]
         if self.strip_duplicates:
@@ -218,7 +218,7 @@ class CollectDConverter(object):
     def hostname(self, host):
         parts = host.split(".")
         parts = list(reversed([p.strip() for p in parts]))
-        for s in self.strip:
+        for s in self.host_trim:
             same = True
             for i, p in enumerate(s):
                 if p != parts[i]:
@@ -247,13 +247,15 @@ class CollectDConverter(object):
     def strip_duplicates(self, parts):
         ret = []
         for p in parts:
-            if p != ret[-1]:
+            if len(ret) == 0 or p != ret[-1]:
                 ret.append(p)
         return ret
 
 
 class CollectDServer(threading.Thread):
     def __init__(self, queue, ip="0.0.0.0", port=25826, converter_options=None):
+        super(CollectDServer, self).__init__()
+        self.setDaemon(True)
         converter_options = converter_options or {}
 
         self.queue = queue
@@ -266,7 +268,7 @@ class CollectDServer(threading.Thread):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            self.sock.bind((ip, port))
+            sock.bind((ip, port))
             log.info("Opened collectd socket %s:%s" % (ip, port))
             return sock
         except OSError:
@@ -278,6 +280,8 @@ class CollectDServer(threading.Thread):
             try:
                 for sample in self.parser.parse(data):
                     name, vtype, val, time = self.converter.convert(sample)
+                    if not name.strip():
+                        continue
                     val = self.calculate(name, vtype, val, time)
                     if val is not None:
                         self.queue.put((name, val, time))
@@ -287,7 +291,7 @@ class CollectDServer(threading.Thread):
     def calculate(self, name, vtype, val, time):
         handlers = {
             0: self._calc_counter,  # counter
-            1: lambda v: v,         # gauge
+            1: lambda _name, v, _time: v,         # gauge
             2: self._calc_derive,  # derive
             3: self._calc_absolute  # absolute
         }

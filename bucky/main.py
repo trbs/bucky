@@ -33,8 +33,11 @@ def main():
     cli = carbon.CarbonClient()
 
     while True:
-        stat, value, time = sampleq.get()
-        cli.send(stat, value, time)
+        try:
+            stat, value, time = sampleq.get(True, 1)
+            cli.send(stat, value, time)
+        except Queue.Empty:
+            pass
 
 
 if __name__ == '__main__':

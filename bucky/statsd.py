@@ -22,14 +22,16 @@ class BindError(StatsDError):
 
 class StatsDHandler(threading.Thread):
     def __init__(self, queue, flush_time=10000):
+        super(StatsDHandler, self).__init__()
+        self.setDaemon(True)
         self.queue = queue
         self.lock = threading.Lock()
         self.counters = {}
         self.timers = {}
         self.flush_time = flush_time
         self.key_res = (
-            (re.compile("\s+"), "_")
-            (re.compile("\/"), "-")
+            (re.compile("\s+"), "_"),
+            (re.compile("\/"), "-"),
             (re.compile("[^a-zA-Z_\-0-9\.]"), "")
         )
 
@@ -95,7 +97,7 @@ class StatsDHandler(threading.Thread):
 
         if len(bits) == 0:
             self.bad_line()
-            continue
+            return
 
         # I'm not sure if statsd is doing this on purpose
         # but the code allows for name:v1|t1:v2|t2 etc etc.
@@ -147,6 +149,8 @@ class StatsDHandler(threading.Thread):
 
 class StatsDServer(threading.Thread):
     def __init__(self, queue, ip="0.0.0.0", port=8125):
+        super(StatsDServer, self).__init__()
+        self.setDaemon(True)
         self.handler = StatsDHandler(queue)
         self.handler.start()
         self.sock = self.init_socket(ip, port)
@@ -155,7 +159,7 @@ class StatsDServer(threading.Thread):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            self.sock.bind((ip, port))
+            sock.bind((ip, port))
             log.info("Opened statsd socket %s:%s" % (ip, port))
             return sock
         except OSError:
