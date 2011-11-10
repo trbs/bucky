@@ -169,3 +169,5 @@ class StatsDServer(threading.Thread):
         while True:
             data, addr = self.sock.recvfrom(65535)
             self.handler.handle(data)
+            if not self.handler.is_alive():
+                return
