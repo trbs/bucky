@@ -51,7 +51,7 @@ setup(
         'Topic :: System :: Networking :: Monitoring'
     ],
     zip_safe = False,
-    packages = ['bucky', 'bucky.converters'],
+    packages = ['bucky'],
     include_package_data = True,
 
     entry_points="""\
