@@ -239,7 +239,7 @@ class CollectDConverter(object):
         host_trim = cfg.get("collectd_host_trim", [])
         self.host_trim = []
         for s in host_trim:
-            s = list(reversed(p.strip() for p in s.split(".")))
+            s = list(reversed([p.strip() for p in s.split(".")]))
             self.strip.append(s)
         self.converters = dict(DEFAULT_CONVERTERS)
         self._load_converters(cfg)
