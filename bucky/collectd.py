@@ -240,7 +240,7 @@ class CollectDConverter(object):
         self.host_trim = []
         for s in host_trim:
             s = list(reversed([p.strip() for p in s.split(".")]))
-            self.strip.append(s)
+            self.host_trim.append(s)
         self.converters = dict(DEFAULT_CONVERTERS)
         self._load_converters(cfg)
 
@@ -274,6 +274,7 @@ class CollectDConverter(object):
                     break
             if same:
                 parts = parts[len(s):]
+                return parts
         return parts
 
     def default(self, sample):
