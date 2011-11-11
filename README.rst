@@ -101,9 +101,8 @@ config file::
     # to generate the name.
     #
     # The dict key should be the CollectD plugin name
-    # and the value should be an instance of a class
-    # with a 1-arity convert method or a 1-arity
-    # function.
+    # and the value should be an callable that accepts
+    # a single argument and returns a list of strings.
     collectd_converters = {}
     
     # Optionally disable the system wide search for

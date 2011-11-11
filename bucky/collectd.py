@@ -15,7 +15,6 @@
 import copy
 import logging
 import os
-import pkg_resources
 import socket
 import struct
 import sys
@@ -35,6 +34,7 @@ class CollectDError(Exception):
 class ConfigError(CollectDError):
     pass
 
+
 class ProtocolError(CollectDError):
     pass
 
@@ -49,12 +49,20 @@ class ServerErrror(CollectDError):
 
 class CPUConverter(object):
     PRIORITY = 0
-    def convert(self, sample):
-        return "foo.bar.baz"
+    def __call__(self, sample):
+        print sample
+        return ["foo", "bar", "baz"]
+
+
+class MemoryConverter(object):
+    PRIORITY = 0
+    def __call__(self, sample):
+        return ["memory", sample["type_instance"]]
 
 
 DEFAULT_CONVERTERS = {
-    "cpu": CPUConverter()
+    "cpu": CPUConverter(),
+    "memory": MemoryConverter(),
 }
 
 
@@ -222,7 +230,8 @@ class CollectDConverter(object):
         for s in host_trim:
             s = list(reversed(p.strip() for p in s.split(".")))
             self.strip.append(s)
-        self._load_converters()
+        self.converters = dict(DEFAULT_CONVERTERS)
+        self._load_converters(cfg)
 
     def convert(self, sample):
         stat = self.stat(sample)
@@ -233,7 +242,8 @@ class CollectDConverter(object):
         if self.prefix:
             parts.append(self.prefix)
         parts.extend(self.hostname(sample.get("host", "")))
-        parts.extend(self.default(sample))
+        handler = self.converters.get(sample["plugin"], self.default)
+        parts.extend(handler(sample))
         if self.postfix:
             parts.append(self.postfix)
         if self.replace is not None:
@@ -278,24 +288,31 @@ class CollectDConverter(object):
                 ret.append(p)
         return ret
 
-    def _load_converters(self):
+    def _load_converters(self, cfg):
+        cfg_conv = cfg.get("collectd_converters", {})
+        for conv in cfg_conv:
+            self._add_converter(conv, cfg_conv[conv])
+        if not cfg["collectd_use_entry_points"]:
+            return
+        import pkg_resources
         group = 'bucky.collectd.converters'
-        self.converters = dict(DEFAULT_CONVERTERS)
         for ep in pkg_resources.iter_entry_points(group):
-            name = ep.name
-            klass = ep.load()
-            if name not in self.plugins:
-                log.info("Converter: %s from %s" % (name, ep.module_name))
-                self.plugins[name] = klass()
-                continue
-            kpriority = getattr(klass, "kpriority", 0)
-            ipriority = getattr(self.plugins[name], "PRIORITY", 0)
-            if kpriority > ipriority:
-                log.info("Replacing: %s" % name)
-                log.info("Converter: %s from %s" % (name, ep.module_name))
-                self.plugins[name] = klass()
-                continue
-            log.info("Ignoring: %s from %s" % (name, ep.module_name))
+            name, klass = ep.name, ep.load()
+            self._add_converter(name, klass())
+
+    def _add_converter(self, name, inst):
+        if name not in self.converters:
+            log.info("Converter: %s from %s" % (name, ep.module_name))
+            self.converters[name] = klass()
+            return
+        kpriority = getattr(klass, "kpriority", 0)
+        ipriority = getattr(self.converters[name], "PRIORITY", 0)
+        if kpriority > ipriority:
+            log.info("Replacing: %s" % name)
+            log.info("Converter: %s from %s" % (name, ep.module_name))
+            self.converters[name] = klass()
+            return
+        log.info("Ignoring: %s from %s" % (name, ep.module_name))
 
 
 class CollectDServer(threading.Thread):
