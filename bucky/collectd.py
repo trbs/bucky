@@ -50,8 +50,7 @@ class ServerErrror(CollectDError):
 class CPUConverter(object):
     PRIORITY = 0
     def __call__(self, sample):
-        print sample
-        return ["foo", "bar", "baz"]
+        return ["cpu", sample["plugin_instance"], sample["type_instance"]]
 
 
 class MemoryConverter(object):
