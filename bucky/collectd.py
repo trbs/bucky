@@ -372,7 +372,8 @@ class CollectDServer(threading.Thread):
             return
         pval, ptime = self.prev_samples[name]
         self.prev_samples[name] = (val, time)
-        if val < pval:
+        if val < pval or time <= ptime:
+            log.error("Invalid COUNTER update for: %s" % name)
             return
         return (val - pval) / (time - ptime)
 
@@ -383,6 +384,9 @@ class CollectDServer(threading.Thread):
             return
         pval, ptime = self.prev_samples[name]
         self.prev_samples[name] = (val, time)
+        if time <= ptime:
+            log.error("Invalid DERIVE update for: %s" % name)
+            return
         return (val - pval) / (time - ptime)
 
     def _calc_absolute(self, name, val, time):
@@ -391,4 +395,7 @@ class CollectDServer(threading.Thread):
             return
         _pval, ptime = self.prev_samples[name]
         self.prev_samples[name] = (val, time)
+        if time <= ptime:
+            log.error("Invalid ABSOLUTE update for: %s" % name)
+            return
         return val / (time - ptime)
