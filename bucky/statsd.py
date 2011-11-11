@@ -17,6 +17,7 @@
 import logging
 import re
 import socket
+import sys
 import threading
 import time
 
@@ -36,7 +37,7 @@ class BindError(StatsDError):
 
 
 class StatsDHandler(threading.Thread):
-    def __init__(self, queue, flush_time=10000):
+    def __init__(self, queue, flush_time=10):
         super(StatsDHandler, self).__init__()
         self.setDaemon(True)
         self.queue = queue
@@ -163,12 +164,12 @@ class StatsDHandler(threading.Thread):
 
 
 class StatsDServer(threading.Thread):
-    def __init__(self, queue, ip="0.0.0.0", port=8125):
+    def __init__(self, queue, cfg):
         super(StatsDServer, self).__init__()
         self.setDaemon(True)
-        self.handler = StatsDHandler(queue)
+        self.handler = StatsDHandler(queue, flush_time=cfg["statsd_flush_time"])
         self.handler.start()
-        self.sock = self.init_socket(ip, port)
+        self.sock = self.init_socket(cfg["statsd_ip"], cfg["statsd_port"])
 
     def init_socket(self, ip, port):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -177,8 +178,9 @@ class StatsDServer(threading.Thread):
             sock.bind((ip, port))
             log.info("Opened statsd socket %s:%s" % (ip, port))
             return sock
-        except OSError:
-            raise BindError("Error opening statsd socket %s:%s." % (ip, port))
+        except Exception:
+            log.error("Error opening statsd socket %s:%s." % (ip, port))
+            sys.exit(1)
 
     def run(self):
         while True:

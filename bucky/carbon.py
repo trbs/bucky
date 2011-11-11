@@ -16,6 +16,7 @@
 
 import logging
 import socket
+import sys
 
 
 log = logging.getLogger(__name__)
@@ -33,13 +34,16 @@ class ConnectError(CarbonException):
 
 
 class CarbonClient(object):
-    def __init__(self, ip="127.0.0.1", port=2003):
+    def __init__(self, cfg):
+        ip = cfg["graphite_ip"]
+        port = cfg["graphite_port"]
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect((ip, port))
             log.info("Connect to Carbon at %s:%s" % (ip, port))
-        except OSError:
-            raise ConnectError("Failed to connect to %s:%s" % (ip, port))
+        except Exception:
+            log.error("Failed to connect to %s:%s" % (ip, port))
+            sys.exit(2)
 
     def send(self, stat, value, mtime):
         mesg = "%s %s %s\n" % (stat, value, mtime)

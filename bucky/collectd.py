@@ -18,6 +18,7 @@ import os
 import pkg_resources
 import socket
 import struct
+import sys
 import threading
 
 
@@ -49,7 +50,6 @@ class ServerErrror(CollectDError):
 class CPUConverter(object):
     PRIORITY = 0
     def convert(self, sample):
-        print sample
         return "foo.bar.baz"
 
 
@@ -59,8 +59,8 @@ DEFAULT_CONVERTERS = {
 
 
 class CollectDTypes(object):
-    def __init__(self, typesdb=None):
-        self.typesdb = typesdb
+    def __init__(self, types_db=None):
+        self.types_db = types_db
         self.types = {}
         self.type_ranges = {}
         self._load_types()
@@ -81,7 +81,7 @@ class CollectDTypes(object):
                 self._add_type_line(line)
 
     def _fname(self):
-        if self.typesdb is not None:
+        if self.types_db is not None:
             return self.typesdb
         ret = "/usr/share/collectd/types.db"
         if os.path.exists(ret):
@@ -114,8 +114,8 @@ class CollectDTypes(object):
 
 
 class CollectDParser(object):
-    def __init__(self):
-        self.types = CollectDTypes()
+    def __init__(self, types_db=None):
+        self.types = CollectDTypes(types_db=types_db)
 
     def parse(self, data):
         for sample in self.parse_samples(data):
@@ -211,17 +211,17 @@ class CollectDParser(object):
 
 
 class CollectDConverter(object):
-    def __init__(self, prefix=None, postfix=None, replace="_",
-                        strip_duplicates=True, host_trim=None):
-        self.prefix = prefix
-        self.postfix = postfix
-        self.replace = replace
-        self.strip_dupes = strip_duplicates
+    def __init__(self, cfg):
+        self.prefix = cfg.get("collectd_prefix")
+        self.postfix = cfg.get("collectd_postfix")
+        self.replace = cfg.get("collectd_replace", "_")
+        self.strip_dupes = cfg.get("collectd_strip_duplicates", True)
+        self.use_entry_points = cfg.get("collectd_use_entry_points", True)
+        host_trim = cfg.get("collectd_host_trim", [])
         self.host_trim = []
-        if host_trim is not None:
-            for s in host_trim:
-                s = list(reversed(p.strip() for p in s.split(".")))
-                self.strip.append(s)
+        for s in host_trim:
+            s = list(reversed(p.strip() for p in s.split(".")))
+            self.strip.append(s)
         self._load_converters()
 
     def convert(self, sample):
@@ -288,7 +288,9 @@ class CollectDConverter(object):
                 log.info("Converter: %s from %s" % (name, ep.module_name))
                 self.plugins[name] = klass()
                 continue
-            if klass.PRIORITY > self.plugins[name].PRIORITY:
+            kpriority = getattr(klass, "kpriority", 0)
+            ipriority = getattr(self.plugins[name], "PRIORITY", 0)
+            if kpriority > ipriority:
                 log.info("Replacing: %s" % name)
                 log.info("Converter: %s from %s" % (name, ep.module_name))
                 self.plugins[name] = klass()
@@ -297,15 +299,14 @@ class CollectDConverter(object):
 
 
 class CollectDServer(threading.Thread):
-    def __init__(self, queue, ip="0.0.0.0", port=25826, converter_options=None):
+    def __init__(self, queue, cfg):
         super(CollectDServer, self).__init__()
         self.setDaemon(True)
-        converter_options = converter_options or {}
 
         self.queue = queue
-        self.parser = CollectDParser()
-        self.converter = CollectDConverter(**converter_options)
-        self.sock = self.init_socket(ip, port)
+        self.parser = CollectDParser(cfg["collectd_types"])
+        self.converter = CollectDConverter(cfg)
+        self.sock = self.init_socket(cfg["collectd_ip"], cfg["collectd_port"])
         self.prev_samples = {}
 
     def init_socket(self, ip, port):
@@ -315,8 +316,9 @@ class CollectDServer(threading.Thread):
             sock.bind((ip, port))
             log.info("Opened collectd socket %s:%s" % (ip, port))
             return sock
-        except OSError:
-            raise BindError("Error opening collectd socket %s:%s." % (ip, port))
+        except Exception:
+            log.error("Error opening collectd socket %s:%s." % (ip, port))
+            sys.exit(1)
 
     def run(self):
         while True:
