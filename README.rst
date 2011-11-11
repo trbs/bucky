@@ -37,7 +37,11 @@ directory in Bucky's source repository.
 Command Line Options
 --------------------
 
-::
+The command line options are limited to controlling the network
+parameters. If you want to configure some of the more intricate
+workings you'll need to use a config file. Here's the `bucky -h`
+output::
+
     Usage: main.py [OPTIONS] [CONFIG_FILE]
 
     Options:
@@ -64,9 +68,9 @@ Config File Options
 The configuration file is a normal Python file that defines a number of
 variables. Most of command line options can also be specified in this
 file (remove the "--" prefix and replace "-" with "_") but if specified
-in both places, the command line takes priority.
+in both places, the command line takes priority. The defaults as a
+config file::
 
-::
     # Prefix for collectd metric names
     collectd_conv_prefix = None
     
