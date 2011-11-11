@@ -140,7 +140,7 @@ def load_config(opts, cfgfile=None):
     cfg["statsd_flush_time"] = 10
     try:
         if cfgfile is not None:
-            execfile(opts.config, cfg, cfg)
+            execfile(cfgfile, cfg, cfg)
     except Exception, e:
         log.error("Failed to read config file: %s" % cfgfile)
         log.error("Reason: %s" % e)
