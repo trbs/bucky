@@ -166,6 +166,18 @@ represent part of the Graphite metric name. For instance, if a
 converter returned `["foo", "bar"]`, the final metric name
 will end up as: `$prefix.$hostname.foo.bar.$postfix`.
 
+An example builtin converter looks like such::
+
+    # This might be how you define a converter in
+    # your config file
+
+    class MemoryConverter(object):
+        PRIORITY = 0
+        def __call__(self, sample):
+            return ["memory", sample["type_instance"]]
+
+    collectd_converters = [MemoryConverter()]
+
 Collectors also have a notion of priority in order to resolve
 conflicts. This is merely a property on the callable named
 "PRIORITY" and larger priorities are preferred. I don't imagine
