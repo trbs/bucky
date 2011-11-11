@@ -53,6 +53,12 @@ class CPUConverter(object):
         return ["cpu", sample["plugin_instance"], sample["type_instance"]]
 
 
+class InterfaceConverter(object):
+    PRIORITY = 0
+    def __call__(self, sample):
+        return ["interface", sample["type_instance"], sample["plugin_instance"]]
+
+
 class MemoryConverter(object):
     PRIORITY = 0
     def __call__(self, sample):
@@ -61,6 +67,7 @@ class MemoryConverter(object):
 
 DEFAULT_CONVERTERS = {
     "cpu": CPUConverter(),
+    "interface": InterfaceConverter(),
     "memory": MemoryConverter(),
 }
 

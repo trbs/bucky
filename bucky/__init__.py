@@ -14,5 +14,5 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-version_info = (0, 0, 1)
+version_info = (0, 0, 3)
 __version__ = ".".join(map(str, version_info))
