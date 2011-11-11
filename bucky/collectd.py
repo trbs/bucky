@@ -353,6 +353,7 @@ class CollectDServer(threading.Thread):
             data, addr = self.sock.recvfrom(65535)
             try:
                 for sample in self.parser.parse(data):
+                    self.last_sample = sample
                     name, vtype, val, time = self.converter.convert(sample)
                     if not name.strip():
                         continue
@@ -361,6 +362,7 @@ class CollectDServer(threading.Thread):
                         self.queue.put((name, val, time))
             except ProtocolError, e:
                 log.error("Protocol error: %s" % e)
+                log.info("Last sample: %s" % self.last_sample)
 
     def calculate(self, name, vtype, val, time):
         handlers = {
@@ -371,6 +373,7 @@ class CollectDServer(threading.Thread):
         }
         if vtype not in handlers:
             log.error("Invalid value type %s for %s" % (vtype, name))
+            log.info("Last sample: %s" % self.last_sample)
             return
         return handlers[vtype](name, val, time)
 
@@ -385,6 +388,7 @@ class CollectDServer(threading.Thread):
         self.prev_samples[name] = (val, time)
         if val < pval or time <= ptime:
             log.error("Invalid COUNTER update for: %s" % name)
+            log.info("Last sample: %s" % self.last_sample)
             return
         return (val - pval) / (time - ptime)
 
@@ -397,6 +401,7 @@ class CollectDServer(threading.Thread):
         self.prev_samples[name] = (val, time)
         if time <= ptime:
             log.error("Invalid DERIVE update for: %s" % name)
+            log.info("Last sample: %s" % self.last_sample)
             return
         return (val - pval) / (time - ptime)
 
@@ -408,5 +413,6 @@ class CollectDServer(threading.Thread):
         self.prev_samples[name] = (val, time)
         if time <= ptime:
             log.error("Invalid ABSOLUTE update for: %s" % name)
+            log.info("Last sample: %s" % self.last_sample)
             return
         return val / (time - ptime)
