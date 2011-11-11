@@ -119,7 +119,8 @@ config file::
 Configuring CollectD
 --------------------
 
-::
+You should only need to add something like this to your collectd.conf::
+
     LoadPlugin "network"
     
     <Plugin "network">
