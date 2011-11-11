@@ -1,5 +1,5 @@
 Bucky
-=====
+-----
 
 Bucky is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
@@ -9,13 +9,13 @@ Installation
 ------------
 
 You can install with `easy_install` or `pip` as per normal modus
-operandi:
+operandi::
 
     $ easy_install bucky
     # or
     $ pip install bucky
 
-After installing, you can run Bucky like:
+After installing, you can run Bucky like::
 
     $ bucky
 
@@ -32,11 +32,12 @@ Running Bucky For Real
 The astute observer will notice that Bucky has no flags for
 daemonization. This is quite on purpose. The recommended way to
 run Bucky in production is via runit. There's an example service
-directory in the Bucky's source repository.
+directory in Bucky's source repository.
 
 Command Line Options
 --------------------
 
+::
     Usage: main.py [OPTIONS] [CONFIG_FILE]
 
     Options:
@@ -65,6 +66,7 @@ variables. Most of command line options can also be specified in this
 file (remove the "--" prefix and replace "-" with "_") but if specified
 in both places, the command line takes priority.
 
+::
     # Prefix for collectd metric names
     collectd_conv_prefix = None
     
@@ -113,6 +115,7 @@ in both places, the command line takes priority.
 Configuring CollectD
 --------------------
 
+::
     LoadPlugin "network"
     
     <Plugin "network">
@@ -139,7 +142,7 @@ but this can result in slightly less than pretty Graphite trees.
 
 For this reason, Bucky has configurable converters. These are
 keyed off the CollectD plugin name. The input to these functions is
-a representation of the CollectD metric that looks like such:
+a representation of the CollectD metric that looks like such::
 
     {
       'host': 'toroid.local',
@@ -157,10 +160,10 @@ a representation of the CollectD metric that looks like such:
 The result of this function should be a list of strings that
 represent part of the Graphite metric name. For instance, if a
 converter returned `["foo", "bar"]`, the final metric name
-will end up as: "$prefix.$hostname.foo.bar.$postfix".
+will end up as: `$prefix.$hostname.foo.bar.$postfix`.
 
 Collectors also have a notion of priority in order to resolve
-conflicts. This is mere a property on the callable named
+conflicts. This is merely a property on the callable named
 "PRIORITY" and larger priorities are preferred. I don't imagine
 this will need to be used very often, but its there just in
 case.
