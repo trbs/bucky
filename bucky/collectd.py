@@ -56,7 +56,12 @@ class CPUConverter(object):
 class InterfaceConverter(object):
     PRIORITY = 0
     def __call__(self, sample):
-        return ["interface", sample["type_instance"], sample["type"]]
+        return [
+            "interface",
+            sample["type_instance"],
+            sample["type"],
+            sample["value_name"]
+        ]
 
 
 class MemoryConverter(object):
