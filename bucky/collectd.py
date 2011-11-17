@@ -15,36 +15,13 @@
 import copy
 import logging
 import os
-import socket
 import struct
-import sys
-import threading
 
+from bucky.errors import ConfigError, ProtocolError
+from bucky.names import statname
+from bucky.udpserver import UDPServer
 
 log = logging.getLogger(__name__)
-
-
-class CollectDError(Exception):
-    def __init__(self, mesg):
-        self.mesg = mesg
-    def __str__(self):
-        return self.mesg
-
-
-class ConfigError(CollectDError):
-    pass
-
-
-class ProtocolError(CollectDError):
-    pass
-
-
-class BindError(CollectDError):
-    pass
-
-
-class ServerErrror(CollectDError):
-    pass
 
 
 class CPUConverter(object):
@@ -231,51 +208,13 @@ class CollectDParser(object):
 
 class CollectDConverter(object):
     def __init__(self, cfg):
-        self.prefix = cfg.get("collectd_prefix")
-        self.postfix = cfg.get("collectd_postfix")
-        self.replace = cfg.get("collectd_replace", "_")
-        self.strip_dupes = cfg.get("collectd_strip_duplicates", True)
-        self.use_entry_points = cfg.get("collectd_use_entry_points", True)
-        host_trim = cfg.get("collectd_host_trim", [])
-        self.host_trim = []
-        for s in host_trim:
-            s = list(reversed([p.strip() for p in s.split(".")]))
-            self.host_trim.append(s)
         self.converters = dict(DEFAULT_CONVERTERS)
         self._load_converters(cfg)
 
     def convert(self, sample):
-        stat = self.stat(sample)
-        return stat, sample["value_type"], sample["value"], int(sample["time"])
-
-    def stat(self, sample):
-        parts = []
-        if self.prefix:
-            parts.append(self.prefix)
-        parts.extend(self.hostname(sample.get("host", "")))
         handler = self.converters.get(sample["plugin"], self.default)
-        parts.extend(handler(sample))
-        if self.postfix:
-            parts.append(self.postfix)
-        if self.replace is not None:
-            parts = [p.replace(".", self.replace) for p in parts]
-        if self.strip_duplicates:
-            parts = self.strip_duplicates(parts)
-        return ".".join(parts)
-
-    def hostname(self, host):
-        parts = host.split(".")
-        parts = list(reversed([p.strip() for p in parts]))
-        for s in self.host_trim:
-            same = True
-            for i, p in enumerate(s):
-                if p != parts[i]:
-                    same = False
-                    break
-            if same:
-                parts = parts[len(s):]
-                return parts
-        return parts
+        stat = statname(sample.get("host", ""), handle(sample))
+        return stat, sample["value_type"], sample["value"], int(sample["time"])
 
     def default(self, sample):
         parts = []
@@ -293,26 +232,19 @@ class CollectDConverter(object):
             parts.append(vname)
         return parts
 
-    def strip_duplicates(self, parts):
-        ret = []
-        for p in parts:
-            if len(ret) == 0 or p != ret[-1]:
-                ret.append(p)
-        return ret
-
     def _load_converters(self, cfg):
-        cfg_conv = cfg.get("collectd_converters", {})
+        cfg_conv = cfg.collectd_converters
         for conv in cfg_conv:
             self._add_converter(conv, cfg_conv[conv])
-        if not cfg["collectd_use_entry_points"]:
+        if not cfg.collectd_use_entry_points:
             return
         import pkg_resources
         group = 'bucky.collectd.converters'
         for ep in pkg_resources.iter_entry_points(group):
             name, klass = ep.name, ep.load()
-            self._add_converter(name, klass())
+            self._add_converter(ep, name, klass)
 
-    def _add_converter(self, name, inst):
+    def _add_converter(self, ep, name, klass):
         if name not in self.converters:
             log.info("Converter: %s from %s" % (name, ep.module_name))
             self.converters[name] = klass()
@@ -327,43 +259,28 @@ class CollectDConverter(object):
         log.info("Ignoring: %s from %s" % (name, ep.module_name))
 
 
-class CollectDServer(threading.Thread):
+class CollectDServer(UDPServer):
     def __init__(self, queue, cfg):
-        super(CollectDServer, self).__init__()
-        self.setDaemon(True)
-
+        super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
-        self.parser = CollectDParser(cfg["collectd_types"])
+        self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
-        self.sock = self.init_socket(cfg["collectd_ip"], cfg["collectd_port"])
         self.prev_samples = {}
 
-    def init_socket(self, ip, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    def handle(self, data, addr):
         try:
-            sock.bind((ip, port))
-            log.info("Opened collectd socket %s:%s" % (ip, port))
-            return sock
-        except Exception:
-            log.error("Error opening collectd socket %s:%s." % (ip, port))
-            sys.exit(1)
-
-    def run(self):
-        while True:
-            data, addr = self.sock.recvfrom(65535)
-            try:
-                for sample in self.parser.parse(data):
-                    self.last_sample = sample
-                    name, vtype, val, time = self.converter.convert(sample)
-                    if not name.strip():
-                        continue
-                    val = self.calculate(name, vtype, val, time)
-                    if val is not None:
-                        self.queue.put((name, val, time))
-            except ProtocolError, e:
-                log.error("Protocol error: %s" % e)
-                log.info("Last sample: %s" % self.last_sample)
+            for sample in self.parser.parse(data):
+                self.last_sample = sample
+                name, vtype, val, time = self.converter.convert(sample)
+                if not name.strip():
+                    continue
+                val = self.calculate(name, vtype, val, time)
+                if val is not None:
+                    self.queue.put((name, val, time))
+        except ProtocolError, e:
+            log.error("Protocol error: %s" % e)
+            log.info("Last sample: %s" % self.last_sample)
+        return True
 
     def calculate(self, name, vtype, val, time):
         handlers = {

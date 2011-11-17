@@ -16,24 +16,13 @@
 
 import logging
 import re
-import socket
-import sys
 import threading
 import time
 
+import bucky.udpserver as udpserver
+
 
 log = logging.getLogger(__name__)
-
-
-class StatsDError(Exception):
-    def __init__(self, mesg):
-        self.mesg = mesg
-    def __str__(self):
-        return self.mesg
-
-
-class BindError(StatsDError):
-    pass
 
 
 class StatsDHandler(threading.Thread):
@@ -163,28 +152,14 @@ class StatsDHandler(threading.Thread):
         log.error("StatsD: Invalid line: '%s'" % self.line.strip())
 
 
-class StatsDServer(threading.Thread):
+class StatsDServer(udpserver.UDPServer):
     def __init__(self, queue, cfg):
-        super(StatsDServer, self).__init__()
-        self.setDaemon(True)
-        self.handler = StatsDHandler(queue, flush_time=cfg["statsd_flush_time"])
+        super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
+        self.handler = StatsDHandler(queue, flush_time=cfg.statsd_flush_time)
         self.handler.start()
-        self.sock = self.init_socket(cfg["statsd_ip"], cfg["statsd_port"])
 
-    def init_socket(self, ip, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind((ip, port))
-            log.info("Opened statsd socket %s:%s" % (ip, port))
-            return sock
-        except Exception:
-            log.error("Error opening statsd socket %s:%s." % (ip, port))
-            sys.exit(1)
-
-    def run(self):
-        while True:
-            data, addr = self.sock.recvfrom(65535)
-            self.handler.handle(data)
-            if not self.handler.is_alive():
-                return
+    def handle(self, data, addr):
+        self.handler.handle(data)
+        if not self.handler.is_alive():
+            return False
+        return True

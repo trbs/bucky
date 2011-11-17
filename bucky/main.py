@@ -21,8 +21,10 @@ import Queue
 import sys
 
 import bucky
+import bucky.cfg as cfg
 import bucky.carbon as carbon
 import bucky.collectd as collectd
+import bucky.metricsd as metricsd
 import bucky.statsd as statsd
 
 
@@ -36,52 +38,71 @@ __version__ = "bucky %s" % bucky.__version__
 
 def options():
     return [
+        op.make_option("--debug", dest="debug", default=False,
+            action="store_true",
+            help="Put server into debug mode. [%default]"
+        ),
+        op.make_option("--metricsd-ip", dest="metricsd_ip", metavar="IP",
+            default=cfg.metricsd_ip,
+            help="IP address to bind for the MetricsD UDP socket [%default]"
+        ),
+        op.make_option("--metricsd-port", dest="metricsd_port", metavar="INT",
+            type="int", default=cfg.metricsd_port,
+            help="Port to bind for the MetricsD UDP socket [%default]"
+        ),
+        op.make_option("--disable-metricsd", dest="metricsd_enabled",
+            default=cfg.metricsd_enabled, action="store_false",
+            help="Disable the MetricsD UDP server"
+        ),
         op.make_option("--collectd-ip", dest="collectd_ip", metavar="IP",
-            default="127.0.0.1",
+            default=cfg.collectd_ip,
             help="IP address to bind for the CollectD UDP socket [%default]"
         ),
         op.make_option("--collectd-port", dest="collectd_port", metavar="INT",
-            type='int', default=25826,
+            type='int', default=cfg.collectd_port,
             help="Port to bind for the CollectD UDP socket [%default]"
         ),
         op.make_option("--collectd-types", dest="collectd_types",
-            metavar="FILE", default=None,
+            metavar="FILE", default=cfg.collectd_types,
             help="Path to the collectd types.db file"
         ),
         op.make_option("--disable-collectd", dest="collectd_enabled",
-            default=True, action="store_false",
+            default=cfg.collectd_enabled, action="store_false",
             help="Disable the CollectD UDP server"
         ),
         op.make_option("--statsd-ip", dest="statsd_ip", metavar="IP",
-            default="127.0.0.1",
+            default=cfg.statsd_ip,
             help="IP address to bind for the StatsD UDP socket [%default]"
         ),
         op.make_option("--statsd-port", dest="statsd_port", metavar="INT",
-            type="int", default=8125,
+            type="int", default=cfg.statsd_port,
             help="Port to bind for the StatsD UDP socket [%default]"
         ),
         op.make_option("--disable-statsd", dest="statsd_enabled",
-            default=True, action="store_false",
+            default=cfg.statsd_enabled, action="store_false",
             help="Disable the StatsD server"
         ),
         op.make_option("--graphite-ip", dest="graphite_ip", metavar="IP",
-            default="127.0.0.1",
+            default=cfg.graphite_ip,
             help="IP address of the Graphite/Carbon server [%default]"
         ),
         op.make_option("--graphite-port", dest="graphite_port", metavar="INT",
-            type="int", default=2003,
+            type="int", default=cfg.graphite_port,
             help="Port of the Graphite/Carbon server [%default]"
         ),
         op.make_option("--full-trace", dest="full_trace",
-            default=False, action="store_true",
+            default=cfg.full_trace, action="store_true",
             help="Display full error if config file fails to load"
         ),
     ]
 
 
 def main():
-    parser = op.OptionParser(usage=__usage__, version=__version__,
-                                option_list=options())
+    parser = op.OptionParser(
+        usage=__usage__,
+        version=__version__,
+        option_list=options()
+    )
     opts, args = parser.parse_args()
 
     if len(args) > 1:
@@ -89,20 +110,25 @@ def main():
     if len(args) == 1 and not os.path.isfile(args[0]):
         parser.error("Invalid config file: %s" % opts.config)
 
-    cfgfile = None
-    if len(args) == 1:
-        cfgfile = args[0]
-    cfg = load_config(opts, cfgfile)
+    if len(args) == 0:
+        load_config(opts)
+    elif len(args) == 1:
+        load_config(opts, args[0])
 
     sampleq = Queue.Queue()
 
+    stypes = []
+    if opts.metricsd_enabled:
+        stypes.append(metricsd.MetricsDServer)
     if opts.collectd_enabled:
-        cdsrv = collectd.CollectDServer(sampleq, cfg)
-        cdsrv.start()
-
+        stypes.append(collectd.CollectDServer)
     if opts.statsd_enabled:
-        stsrv = statsd.StatsDServer(sampleq, cfg)
-        stsrv.start()
+        stypes.append(statsd.StatsDServer)
+
+    servers = []
+    for stype in stypes:
+        servers.append(stype(sampleq, cfg))
+        servers[-1].start()
 
     cli = carbon.CarbonClient(cfg)
 
@@ -112,32 +138,13 @@ def main():
             cli.send(stat, value, time)
         except Queue.Empty:
             pass
-        if opts.collectd_enabled and not cdsrv.is_alive():
-            log.error("collectd server died")
-            break
-        if opts.statsd_enabled and not stsrv.is_alive():
-            log.error("statsd server died")
-            break
+        for srv in servers:
+            if not srv.is_alive():
+                log.error("Server thread died. Exiting.")
+                break
 
 
 def load_config(opts, cfgfile=None):
-    cfg = {
-        "__builtins__": __builtins__,
-        "__name__": "__config__",
-        "__file__": cfgfile,
-        "__doc__": None,
-        "__package__": None
-    }
-    param_names = """
-        collectd_ip collectd_port collectd_types
-        statsd_ip statsd_port
-        graphite_ip graphite_port
-    """.split()
-    for name in param_names:
-        cfg[name] = getattr(opts, name)
-    cfg["collectd_converters"] = []
-    cfg["collectd_use_entry_points"] = True
-    cfg["statsd_flush_time"] = 10
     try:
         if cfgfile is not None:
             execfile(cfgfile, cfg, cfg)
@@ -148,7 +155,11 @@ def load_config(opts, cfgfile=None):
             import traceback
             traceback.print_exc()
         sys.exit(1)
-    return cfg
+    for name in dir(cfg):
+        if name.startswith("_"):
+            continue
+        if hasattr(opts, name):
+            setattr(cfg, name, getattr(opts, name))
 
 
 if __name__ == '__main__':
@@ -157,4 +168,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception, e:
+        raise
         print e

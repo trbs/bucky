@@ -22,25 +22,22 @@ import sys
 log = logging.getLogger(__name__)
 
 
-class CarbonException(Exception):
-    def __init__(self, mesg):
-        self.mesg = mesg
-    def __str__(self):
-        return self.mesg
-
-
-class ConnectError(CarbonException):
-    pass
+class DebugSocket(object):
+    def sendall(self, data):
+        sys.stdout.write(data)
 
 
 class CarbonClient(object):
     def __init__(self, cfg):
-        ip = cfg["graphite_ip"]
-        port = cfg["graphite_port"]
+        ip, port = cfg.graphite_ip, cfg.graphite_port
+        if cfg.debug:
+            log.debug("Connected the debug socket.")
+            self.sock = DebugSocket()
+            return
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect((ip, port))
-            log.info("Connect to Carbon at %s:%s" % (ip, port))
+            log.info("Connected to Carbon at %s:%s" % (ip, port))
         except Exception:
             log.error("Failed to connect to %s:%s" % (ip, port))
             sys.exit(2)
