@@ -25,7 +25,7 @@ def _get_host_trim():
     if __host_trim__ is not None:
         return __host_trim__
     host_trim = cfg.name_host_trim
-    __host_tim__ = []
+    __host_trim__ = []
     for s in host_trim:
         s = list(reversed([p.strip() for p in s.split(".")]))
         __host_trim__.append(s)
