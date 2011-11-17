@@ -256,7 +256,8 @@ class CollectDConverter(object):
             log.info("Converter: %s from %s" % (name, source))
             self.converters[name] = inst
             return
-        log.info("Ignoring: %s from %s" % (name, source))
+        log.info( "Ignoring: %s (%s) from %s (priority: %s vs %s)"
+            % (name, inst, source, kpriority, ipriority) )
 
 
 class CollectDServer(UDPServer):
