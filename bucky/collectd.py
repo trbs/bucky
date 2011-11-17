@@ -55,10 +55,16 @@ DEFAULT_CONVERTERS = {
 
 
 class CollectDTypes(object):
-    def __init__(self, types_db=None):
-        self.types_db = types_db
+    def __init__(self, types_dbs=[]):
         self.types = {}
         self.type_ranges = {}
+        if not types_dbs:
+            types_dbs = filter(os.path.exists, [
+                "/usr/share/collectd/types.db",
+                "/usr/local/share/collectd/types.db" ])
+            if not types_dbs:
+                raise ConfigError("Unable to locate types.db")
+        self.types_dbs = types_dbs
         self._load_types()
 
     def get(self, name):
@@ -68,24 +74,14 @@ class CollectDTypes(object):
         return t
 
     def _load_types(self):
-        with open(self._fname()) as handle:
-            for line in handle:
-                if line.lstrip()[:1] == "#":
-                    continue
-                if not line.strip():
-                    continue
-                self._add_type_line(line)
-
-    def _fname(self):
-        if self.types_db is not None:
-            return self.typesdb
-        ret = "/usr/share/collectd/types.db"
-        if os.path.exists(ret):
-            return ret
-        ret = "/usr/local/share/collectd/types.db"
-        if os.path.exists(ret):
-            return ret
-        raise ConfigError("Unable to locate types.db")
+        for types_db in self.types_dbs:
+            with open(types_db) as handle:
+                for line in handle:
+                    if line.lstrip()[:1] == "#":
+                        continue
+                    if not line.strip():
+                        continue
+                    self._add_type_line(line)
 
     def _add_type_line(self, line):
         types = {
@@ -110,8 +106,8 @@ class CollectDTypes(object):
 
 
 class CollectDParser(object):
-    def __init__(self, types_db=None):
-        self.types = CollectDTypes(types_db=types_db)
+    def __init__(self, types_dbs=[]):
+        self.types = CollectDTypes(types_dbs=types_dbs)
 
     def parse(self, data):
         for sample in self.parse_samples(data):

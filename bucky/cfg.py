@@ -11,7 +11,7 @@ metricsd_handlers = []
 collectd_ip = "127.0.0.1"
 collectd_port = 25826
 collectd_enabled = True
-collectd_types = None
+collectd_types = []
 collectd_converters = []
 collectd_use_entry_points = True
 
@@ -30,4 +30,3 @@ name_postfix = None
 name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
-
