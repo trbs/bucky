@@ -213,7 +213,13 @@ class CollectDConverter(object):
 
     def convert(self, sample):
         handler = self.converters.get(sample["plugin"], self.default)
-        stat = statname(sample.get("host", ""), handle(sample))
+        try:
+            name = handler(sample)
+        except:
+            log.exception("Exception in sample handler  %s (%s):" % (
+                sample["plugin"], handler))
+            return
+        stat = statname(sample.get("host", ""), name)
         return stat, sample["value_type"], sample["value"], int(sample["time"])
 
     def default(self, sample):
@@ -273,7 +279,7 @@ class CollectDServer(UDPServer):
             for sample in self.parser.parse(data):
                 self.last_sample = sample
                 name, vtype, val, time = self.converter.convert(sample)
-                if not name.strip():
+                if not name or not name.strip():
                     continue
                 val = self.calculate(name, vtype, val, time)
                 if val is not None:
