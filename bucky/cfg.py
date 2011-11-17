@@ -1,5 +1,6 @@
 
 debug = False
+log_level = "INFO"
 
 metricsd_ip = "127.0.0.1"
 metricsd_port = 23632

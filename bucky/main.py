@@ -29,8 +29,6 @@ import bucky.statsd as statsd
 
 
 log = logging.getLogger(__name__)
-logfmt = "[%(levelname)s] %(module)s - %(message)s"
-logging.basicConfig(format=logfmt, level=logging.DEBUG)
 
 
 __usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
@@ -94,6 +92,10 @@ def options():
             default=cfg.full_trace, action="store_true",
             help="Display full error if config file fails to load"
         ),
+        op.make_option("--log-level", dest="log_level",
+            metavar="NAME", default="INFO",
+            help="Logging output verbosity [%default]"
+        ),
     ]
 
 
@@ -114,6 +116,12 @@ def main():
         load_config(opts)
     elif len(args) == 1:
         load_config(opts, args[0])
+
+    if cfg.debug:
+        cfg.log_level = "DEBUG"
+
+    logfmt = "[%(levelname)s] %(module)s - %(message)s"
+    logging.basicConfig(format=logfmt, level=cfg.log_level)
 
     sampleq = Queue.Queue()
 
