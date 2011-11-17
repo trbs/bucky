@@ -327,8 +327,8 @@ class CollectDServer(UDPServer):
         pval, ptime = self.prev_samples[name]
         self.prev_samples[name] = (val, time)
         if time <= ptime:
-            log.error("Invalid DERIVE update for: %s" % name)
-            log.info("Last sample: %s" % self.last_sample)
+            log.debug("Invalid DERIVE update for: %s" % name)
+            log.debug("Last sample: %s" % self.last_sample)
             return
         return (val - pval) / (time - ptime)
 
