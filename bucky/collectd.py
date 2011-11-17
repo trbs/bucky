@@ -25,13 +25,13 @@ log = logging.getLogger(__name__)
 
 
 class CPUConverter(object):
-    PRIORITY = 0
+    PRIORITY = -1
     def __call__(self, sample):
         return ["cpu", sample["plugin_instance"], sample["type_instance"]]
 
 
 class InterfaceConverter(object):
-    PRIORITY = 0
+    PRIORITY = -1
     def __call__(self, sample):
         return [
             "interface",
@@ -42,7 +42,7 @@ class InterfaceConverter(object):
 
 
 class MemoryConverter(object):
-    PRIORITY = 0
+    PRIORITY = -1
     def __call__(self, sample):
         return ["memory", sample["type_instance"]]
 
