@@ -215,6 +215,8 @@ class CollectDConverter(object):
         handler = self.converters.get(sample["plugin"], self.default)
         try:
             name = handler(sample)
+            if name is None:
+                return # treat None as "ignore sample"
         except:
             log.exception("Exception in sample handler  %s (%s):" % (
                 sample["plugin"], handler))

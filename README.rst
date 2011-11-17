@@ -161,10 +161,11 @@ a representation of the CollectD metric that looks like such::
       'value_type': 1
     }
 
-The result of this function should be a list of strings that
-represent part of the Graphite metric name. For instance, if a
-converter returned `["foo", "bar"]`, the final metric name
-will end up as: `$prefix.$hostname.foo.bar.$postfix`.
+The result of this function should be a list of strings that represent
+part of the Graphite metric name or `None` to drop sample
+entirely. For instance, if a converter returned `["foo", "bar"]`, the
+final metric name will end up as:
+`$prefix.$hostname.foo.bar.$postfix`.
 
 An example builtin converter looks like such::
 
