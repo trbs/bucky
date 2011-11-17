@@ -17,6 +17,8 @@ import socket
 import sys
 import threading
 
+import bucky.cfg as cfg
+
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +27,8 @@ class UDPServer(threading.Thread):
     def __init__(self, ip, port):
         super(UDPServer, self).__init__()
         self.setDaemon(True)
+        self.ip = ip
+        self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -37,8 +41,22 @@ class UDPServer(threading.Thread):
     def run(self):
         while True:
             data, addr = self.sock.recvfrom(65535)
+            log.debug("Received UDP packet from %s:%s" % addr)
+            if cfg.debug is True:
+                if data == 'EXIT':
+                    return
             if not self.handle(data, addr):
                 return
 
     def handle(self, data, addr):
         raise NotImplemented()
+
+    def close(self):
+        self.send('EXIT')
+
+    def send(self, data):
+        log.debug("Sending UDP packet to %s:%s" % (self.ip, self.port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto(data, (self.ip, self.port))
+
+

@@ -15,6 +15,7 @@
 # Copyright 2011 Cloudant, Inc.
 
 import logging
+import math
 import re
 import threading
 import time
@@ -53,13 +54,13 @@ class StatsDHandler(threading.Thread):
         ret = 0
         for k, v in self.timers.iteritems():
             v.sort()
-            pct_thresh = 0.9
+            pct_thresh = 90
             count = len(v)
             vmin, vmax = v[0], v[-1]
-            mean, vthres = vmin, vmax
+            mean, vthresh = vmin, vmax
 
             if count > 1:
-                thresh_idx = int((100.0 - pct_thresh) / 100.0 * float(count))
+                thresh_idx = int(math.floor(float(pct_thresh) / 100.0 * count))
                 v = v[:thresh_idx]
                 vthresh = v[-1]
                 vsum = sum(v)
@@ -67,7 +68,7 @@ class StatsDHandler(threading.Thread):
 
             self.queue.put(("stats.timers.%s.mean" % k, mean, stime))
             self.queue.put(("stats.timers.%s.upper" % k, vmax, stime))
-            t = int(pct_thresh * 100)
+            t = int(pct_thresh)
             self.queue.put(("stats.timers.%s.upper_%s" % (k,t), vthresh, stime))
             self.queue.put(("stats.timers.%s.lower" % k, vmin, stime))
             self.queue.put(("stats.timers.%s.count" % k, count, stime))
@@ -80,8 +81,7 @@ class StatsDHandler(threading.Thread):
         ret = 0
         for k, v in self.counters.iteritems():
             stat = "stats.%s" % k
-            v = v / self.flush_interval
-            self.queue.put((stat, v / self.flush_interval, stime))
+            self.queue.put((stat, v / self.flush_time, stime))
             self.counters[k] = 0
             ret += 1
         return ret
@@ -97,6 +97,7 @@ class StatsDHandler(threading.Thread):
             self.handle_line(line)
 
     def handle_line(self, line):
+        print line
         bits = line.split(":", 1)
         key = self.handle_key(bits.pop(0))
 
