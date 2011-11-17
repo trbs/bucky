@@ -82,6 +82,7 @@ class CollectDTypes(object):
                     if not line.strip():
                         continue
                     self._add_type_line(line)
+            log.info("Loaded collectd types from %s" % types_db)
 
     def _add_type_line(self, line):
         types = {
