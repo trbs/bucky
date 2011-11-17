@@ -117,11 +117,7 @@ def main():
     elif len(args) == 1:
         load_config(opts, args[0])
 
-    if cfg.debug:
-        cfg.log_level = "DEBUG"
-
-    logfmt = "[%(levelname)s] %(module)s - %(message)s"
-    logging.basicConfig(format=logfmt, level=cfg.log_level)
+    configure_logging()
 
     sampleq = Queue.Queue()
 
@@ -168,6 +164,18 @@ def load_config(opts, cfgfile=None):
             continue
         if hasattr(opts, name):
             setattr(cfg, name, getattr(opts, name))
+
+
+def configure_logging():
+    logfmt = "[%(levelname)s] %(module)s - %(message)s"
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(logfmt))
+    handler.setLevel(logging.ERROR) # Overridden by configuration
+    logging.root.addHandler(handler)
+    logging.root.setLevel(logging.DEBUG)
+    if cfg.debug:
+        cfg.log_level = "DEBUG"
+    handler.setLevel(cfg.log_level)
 
 
 if __name__ == '__main__':
