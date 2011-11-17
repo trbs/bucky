@@ -155,7 +155,7 @@ def main():
 def load_config(opts, cfgfile=None):
     try:
         if cfgfile is not None:
-            execfile(cfgfile, cfg, cfg)
+            execfile(cfgfile, vars(cfg), vars(cfg))
     except Exception, e:
         log.error("Failed to read config file: %s" % cfgfile)
         log.error("Reason: %s" % e)
