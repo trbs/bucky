@@ -107,15 +107,14 @@ def main():
     )
     opts, args = parser.parse_args()
 
-    if len(args) > 1:
-        parser.error("Too many arguments.")
-    if len(args) == 1 and not os.path.isfile(args[0]):
-        parser.error("Invalid config file: %s" % opts.config)
-
-    if len(args) == 0:
-        load_config(opts)
-    elif len(args) == 1:
-        load_config(opts, args[0])
+    if args:
+        try:
+            cfgfile, = args
+        except ValueError:
+            parser.error("Too many arguments.")
+    else:
+        cfgfile = None
+    load_config(cfgfile, full_trace=opts.full_trace)
 
     configure_logging()
 
@@ -148,13 +147,14 @@ def main():
                 break
 
 
-def load_config(opts, cfgfile=None):
+def load_config(cfgfile, full_trace=False):
+    cfg_mapping = vars(cfg)
     try:
         if cfgfile is not None:
-            execfile(cfgfile, vars(cfg), vars(cfg))
+            execfile(cfgfile, cfg_mapping)
     except Exception, e:
         log.error("Failed to read config file: %s" % cfgfile)
-        if opts.full_trace:
+        if full_trace:
             log.exception("Reason: %s" % e)
         else:
             log.error("Reason: %s" % e
@@ -162,8 +162,8 @@ def load_config(opts, cfgfile=None):
     for name in dir(cfg):
         if name.startswith("_"):
             continue
-        if hasattr(opts, name):
-            setattr(cfg, name, getattr(opts, name))
+        if name in cfg_mapping:
+            setattr(cfg, name, cfg_mapping[name])
 
 
 def configure_logging():
