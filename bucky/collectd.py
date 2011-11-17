@@ -235,28 +235,28 @@ class CollectDConverter(object):
     def _load_converters(self, cfg):
         cfg_conv = cfg.collectd_converters
         for conv in cfg_conv:
-            self._add_converter(conv, cfg_conv[conv])
+            self._add_converter(conv, cfg_conv[conv], source="config")
         if not cfg.collectd_use_entry_points:
             return
         import pkg_resources
         group = 'bucky.collectd.converters'
         for ep in pkg_resources.iter_entry_points(group):
             name, klass = ep.name, ep.load()
-            self._add_converter(ep, name, klass)
+            self._add_converter(name, klass, source=ep.module_name)
 
-    def _add_converter(self, ep, name, klass):
+    def _add_converter(self, name, inst, source="unknown"):
         if name not in self.converters:
-            log.info("Converter: %s from %s" % (name, ep.module_name))
-            self.converters[name] = klass()
+            log.info("Converter: %s from %s" % (name, source))
+            self.converters[name] = inst
             return
-        kpriority = getattr(klass, "kpriority", 0)
+        kpriority = getattr(inst, "PRIORITY", 0)
         ipriority = getattr(self.converters[name], "PRIORITY", 0)
         if kpriority > ipriority:
             log.info("Replacing: %s" % name)
-            log.info("Converter: %s from %s" % (name, ep.module_name))
-            self.converters[name] = klass()
+            log.info("Converter: %s from %s" % (name, source))
+            self.converters[name] = inst
             return
-        log.info("Ignoring: %s from %s" % (name, ep.module_name))
+        log.info("Ignoring: %s from %s" % (name, source))
 
 
 class CollectDServer(UDPServer):
