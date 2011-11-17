@@ -177,7 +177,7 @@ An example builtin converter looks like such::
         def __call__(self, sample):
             return ["memory", sample["type_instance"]]
 
-    collectd_converters = [MemoryConverter()]
+    collectd_converters = {"memory": MemoryConverter()}
 
 Collectors also have a notion of priority in order to resolve
 conflicts. This is merely a property on the callable named
