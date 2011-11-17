@@ -58,15 +58,15 @@ def strip_duplicates(parts):
 
 def statname(host, nameparts):
     parts = []
-    if self.prefix:
-        parts.append(self.prefix)
+    if cfg.name_prefix:
+        parts.append(cfg.name_prefix)
     parts.extend(hostname(host))
     parts.extend(nameparts)
-    if self.postfix:
-        parts.append(self.postfix)
-    if self.replace is not None:
+    if cfg.name_postfix:
+        parts.append(cfg.name_postfix)
+    if cfg.name_replace_char is not None:
         parts = [p.replace(".", cfg.name_replace_char) for p in parts]
-    if self.strip_duplicates:
+    if cfg.name_strip_duplicates:
         parts = strip_duplicates(parts)
     return ".".join(parts)
 
