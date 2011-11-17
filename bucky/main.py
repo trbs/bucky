@@ -158,10 +158,10 @@ def load_config(opts, cfgfile=None):
             execfile(cfgfile, vars(cfg), vars(cfg))
     except Exception, e:
         log.error("Failed to read config file: %s" % cfgfile)
-        log.error("Reason: %s" % e)
         if opts.full_trace:
-            import traceback
-            traceback.print_exc()
+            log.exception("Reason: %s" % e)
+        else:
+            log.error("Reason: %s" % e
         sys.exit(1)
     for name in dir(cfg):
         if name.startswith("_"):
