@@ -51,7 +51,7 @@ setup(
         'Topic :: System :: Networking :: Monitoring'
     ],
     zip_safe = False,
-    packages = ['bucky'],
+    packages = ['bucky', 'bucky.metrics', 'bucky.metrics.stats'],
     include_package_data = True,
 
     entry_points="""\
