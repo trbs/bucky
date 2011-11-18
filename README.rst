@@ -42,30 +42,31 @@ parameters. If you want to configure some of the more intricate
 workings you'll need to use a config file. Here's the `bucky -h`
 output::
 
-   Usage: main.py [OPTIONS] [CONFIG_FILE]
-   
-   Options:
-     --debug               Put server into debug mode. [False]
-     --metricsd-ip=IP      IP address to bind for the MetricsD UDP socket
-                           [127.0.0.1]
-     --metricsd-port=INT   Port to bind for the MetricsD UDP socket [23632]
-     --disable-metricsd    Disable the MetricsD UDP server
-     --collectd-ip=IP      IP address to bind for the CollectD UDP socket
-                           [127.0.0.1]
-     --collectd-port=INT   Port to bind for the CollectD UDP socket [25826]
-     --collectd-types=FILE
-                           Path to the collectd types.db file
-     --disable-collectd    Disable the CollectD UDP server
-     --statsd-ip=IP        IP address to bind for the StatsD UDP socket
-                           [127.0.0.1]
-     --statsd-port=INT     Port to bind for the StatsD UDP socket [8125]
-     --disable-statsd      Disable the StatsD server
-     --graphite-ip=IP      IP address of the Graphite/Carbon server [127.0.0.1]
-     --graphite-port=INT   Port of the Graphite/Carbon server [2003]
-     --full-trace          Display full error if config file fails to load
-     --log-level=NAME      Logging output verbosity [INFO]
-     --version             show program's version number and exit
-     -h, --help            show this help message and exit
+    Usage: main.py [OPTIONS] [CONFIG_FILE]
+    
+    Options:
+      --debug               Put server into debug mode. [False]
+      --metricsd-ip=IP      IP address to bind for the MetricsD UDP socket
+                            [127.0.0.1]
+      --metricsd-port=INT   Port to bind for the MetricsD UDP socket [23632]
+      --disable-metricsd    Disable the MetricsD UDP server
+      --collectd-ip=IP      IP address to bind for the CollectD UDP socket
+                            [127.0.0.1]
+      --collectd-port=INT   Port to bind for the CollectD UDP socket [25826]
+      --collectd-types=FILE
+                            Path to the collectd types.db file, can be specified
+                            multiple times
+      --disable-collectd    Disable the CollectD UDP server
+      --statsd-ip=IP        IP address to bind for the StatsD UDP socket
+                            [127.0.0.1]
+      --statsd-port=INT     Port to bind for the StatsD UDP socket [8125]
+      --disable-statsd      Disable the StatsD server
+      --graphite-ip=IP      IP address of the Graphite/Carbon server [127.0.0.1]
+      --graphite-port=INT   Port of the Graphite/Carbon server [2003]
+      --full-trace          Display full error if config file fails to load
+      --log-level=NAME      Logging output verbosity [INFO]
+      --version             show program's version number and exit
+      -h, --help            show this help message and exit
 
 
 Config File Options

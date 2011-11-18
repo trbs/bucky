@@ -157,7 +157,7 @@ def load_config(cfgfile, full_trace=False):
         if full_trace:
             log.exception("Reason: %s" % e)
         else:
-            log.error("Reason: %s" % e
+            log.error("Reason: %s" % e)
         sys.exit(1)
     for name in dir(cfg):
         if name.startswith("_"):

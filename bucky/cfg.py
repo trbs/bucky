@@ -22,6 +22,8 @@ statsd_flush_time = 10.0
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
+graphite_max_reconnects = 0
+graphite_reconnect_delay = 5
 
 full_trace = False
 

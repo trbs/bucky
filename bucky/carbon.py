@@ -17,6 +17,7 @@
 import logging
 import socket
 import sys
+import time
 
 
 log = logging.getLogger(__name__)
@@ -29,20 +30,48 @@ class DebugSocket(object):
 
 class CarbonClient(object):
     def __init__(self, cfg):
-        ip, port = cfg.graphite_ip, cfg.graphite_port
-        if cfg.debug:
+        self.debug = cfg.debug
+        self.ip = cfg.graphite_ip
+        self.port = cfg.graphite_port
+        self.max_reconnects = cfg.graphite_max_reconnects
+        self.reconnect_delay = cfg.graphite_reconnect_delay
+        if self.max_reconnects <= 0:
+            self.max_reconnects = sys.maxint
+        self.connect()
+
+    def connect(self):
+        if self.debug:
             log.debug("Connected the debug socket.")
             self.sock = DebugSocket()
             return
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while self.max_reconnects > 0:
+            try:
+                self.sock.connect((self.ip, self.port))
+                log.info("Connected to Carbon at %s:%s" % peer)
+                return
+            except socket.error, e:
+                args = (self.ip, self.port, e)
+                log.error("Failed to connect to %s:%s: %s" % args)
+                if self.reconnect_delay > 0:
+                    time.sleep(self.reconnect_delay)
+
+    def reconnect(self):
+        self.close()
+        self.connect()
+
+    def close(self):
         try:
-            self.sock.connect((ip, port))
-            log.info("Connected to Carbon at %s:%s" % (ip, port))
-        except Exception:
-            log.error("Failed to connect to %s:%s" % (ip, port))
-            sys.exit(2)
+            self.sock.close()
+        except:
+            pass
 
     def send(self, stat, value, mtime):
         mesg = "%s %s %s\n" % (stat, value, mtime)
-        self.sock.sendall(mesg)
-
+        while self.max_reconnects > 0:
+            try:
+                self.sock.sendall(mesg)
+                return
+            except socket.error, err:
+                log.error("Failed to send data to Carbon server: %s" % err)
+                self.reconnect()
