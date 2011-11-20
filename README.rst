@@ -192,13 +192,18 @@ An example builtin converter looks like such::
 
     collectd_converters = {"memory": MemoryConverter()}
 
-Collectors also have a notion of priority in order to resolve
-conflicts. This is merely a property on the callable named
-"PRIORITY" and larger priorities are preferred. I don't imagine
-this will need to be used very often, but its there just in
-case.
-
 Converters can either be declared and/or imported in the optional
 config file, or they can be autodiscovered via entry points. The
 entry point that is searched is "bucky.collectd.converters". The
 entry point name should be the CollectD plugin name.
+
+`collectd_converters` in config file should be a mapping of collectd
+plugin name to converter instance. The default catch-all converter
+(used when no special converter is defined for a plugin) can be
+overidden by specifying `_default` as the plugin name.
+
+Converters also have a notion of priority in order to resolve
+conflicts. This is merely a property on the callable named
+"PRIORITY" and larger priorities are preferred. I don't imagine
+this will need to be used very often, but its there just in
+case.

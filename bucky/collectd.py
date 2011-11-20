@@ -47,10 +47,30 @@ class MemoryConverter(object):
         return ["memory", sample["type_instance"]]
 
 
+class DefaultConverter(object):
+    PRIORITY = -1
+    def __call__(self, sample):
+        parts = []
+        parts.append(sample["plugin"].strip())
+        if sample.get("plugin_instance"):
+            parts.append(sample["plugin_instance"].strip())
+        stype = sample.get("type", "").strip()
+        if stype and stype != "value":
+            parts.append(stype)
+        stypei = sample.get("type_instance", "").strip()
+        if stypei:
+            parts.append(stypei)
+        vname = sample.get("value_name").strip()
+        if vname and vname != "value":
+            parts.append(vname)
+        return parts
+
+
 DEFAULT_CONVERTERS = {
     "cpu": CPUConverter(),
     "interface": InterfaceConverter(),
     "memory": MemoryConverter(),
+    "_default": DefaultConverter(),
 }
 
 
@@ -209,7 +229,8 @@ class CollectDConverter(object):
         self._load_converters(cfg)
 
     def convert(self, sample):
-        handler = self.converters.get(sample["plugin"], self.default)
+        default = self.converters["_default"]
+        handler = self.converters.get(sample["plugin"], default)
         try:
             name = handler(sample)
             if name is None:
@@ -220,22 +241,6 @@ class CollectDConverter(object):
             return
         stat = statname(sample.get("host", ""), name)
         return stat, sample["value_type"], sample["value"], int(sample["time"])
-
-    def default(self, sample):
-        parts = []
-        parts.append(sample["plugin"].strip())
-        if sample.get("plugin_instance"):
-            parts.append(sample["plugin_instance"].strip())
-        stype = sample.get("type", "").strip()
-        if stype and stype != "value":
-            parts.append(stype)
-        stypei = sample.get("type_instance", "").strip()
-        if stypei:
-            parts.append(stypei)
-        vname = sample.get("value_name").strip()
-        if vname and vname != "value":
-            parts.append(vname)
-        return parts
 
     def _load_converters(self, cfg):
         cfg_conv = cfg.collectd_converters
@@ -277,8 +282,11 @@ class CollectDServer(UDPServer):
         try:
             for sample in self.parser.parse(data):
                 self.last_sample = sample
-                name, vtype, val, time = self.converter.convert(sample)
-                if not name or not name.strip():
+                sample = self.converter.convert(sample)
+                if sample is None:
+                    continue
+                name, vtype, val, time = sample
+                if not name.strip():
                     continue
                 val = self.calculate(name, vtype, val, time)
                 if val is not None:
