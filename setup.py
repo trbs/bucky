@@ -35,7 +35,7 @@ setup(
     author = 'Paul J. Davis',
     author_email = 'paul@cloudant.com',
     license = 'ASF2.0',
-    url = 'http://github.com/davisp/bucky.git',
+    url = 'http://github.com/cloudant/bucky.git',
 
     classifiers = [
         'Development Status :: 4 - Beta',
