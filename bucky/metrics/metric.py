@@ -15,20 +15,23 @@
 # Copyright 2011 Cloudant, Inc.
 
 import time
+import sys
 
 
 class MetricValue(object):
-    def __init__(self, name, value, now=None):
+    def __init__(self, name, value, now=None, dump_agg=False):
         self.name = name
         self.value = value
         self.time = now or time.time()
+        if dump_agg:
+            sys.stdout.write("%s %s\n" % (name, dump_agg))
 
 class Metric(object):
     def update(self, value):
         raise NotImplemented()
-    
+
     def clear(self, value):
         raise NotImplemented()
-    
+
     def metrics(slef):
         raise NotImplemented()

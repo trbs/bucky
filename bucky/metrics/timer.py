@@ -32,5 +32,6 @@ class Timer(Metric):
         self.meter.mark()
         self.histogram.update(value)
 
-    def metrics(self):
-        return self.meter.metrics() + self.histogram.metrics()
+    def metrics(self, dump_agg=False):
+        return self.meter.metrics(dump_agg=dump_agg)\
+            + self.histogram.metrics(dump_agg=dump_agg)

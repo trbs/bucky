@@ -121,7 +121,7 @@ class MetricsDParser(object):
 
 
 class MetricsDHandler(threading.Thread):
-    def __init__(self, outbox, interval):
+    def __init__(self, outbox, interval, dump_agg=False):
         super(MetricsDHandler, self).__init__()
         self.setDaemon(True)
         self.interval = interval
@@ -129,6 +129,7 @@ class MetricsDHandler(threading.Thread):
         self.inbox = Queue.Queue()
         self.next_update = time.time() + self.interval
         self.metrics = {}
+        self.dump_agg = dump_agg
 
     def enqueue(self, mc):
         self.inbox.put(mc)
@@ -162,7 +163,7 @@ class MetricsDHandler(threading.Thread):
 
     def flush_updates(self):
         for _, metric in self.metrics.iteritems():
-            for v in metric.metrics():
+            for v in metric.metrics(dump_agg=self.dump_agg):
                 self.outbox.put((v.name, v.value, v.time))
 
 
@@ -170,6 +171,7 @@ class MetricsDServer(UDPServer):
     def __init__(self, queue, cfg):
         super(MetricsDServer, self).__init__(cfg.metricsd_ip, cfg.metricsd_port)
         self.parser = MetricsDParser()
+        self.dump_agg = cfg.dump_aggregation_methods
         self.handlers = self._init_handlers(queue, cfg)
 
     def handle(self, data, addr):
@@ -185,7 +187,8 @@ class MetricsDServer(UDPServer):
         default = cfg.metricsd_default_interval
         handlers = cfg.metricsd_handlers
         if not len(handlers):
-            ret = [(None, MetricsDHandler(queue, default))]
+            ret = [(None, MetricsDHandler(
+                queue, default, dump_agg=self.dump_agg ))]
             ret[0][1].start()
             return ret
         for item in handlers:

@@ -65,6 +65,11 @@ output::
       --graphite-port=INT   Port of the Graphite/Carbon server [2003]
       --full-trace          Display full error if config file fails to load
       --log-level=NAME      Logging output verbosity [INFO]
+      --dump-aggregation-methods
+                            Force bucky to dump metric names and aggregation
+                            methods, derived from metric type, to stdout (if such
+                            information is exposed via collectd or statsd types)
+                            as samples are collected.
       --version             show program's version number and exit
       -h, --help            show this help message and exit
 

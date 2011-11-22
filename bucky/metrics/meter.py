@@ -34,14 +34,19 @@ class Meter(Metric):
         self.m5_rate.update(value)
         self.m15_rate.update(value)
 
-    def metrics(self):
+    def metrics(self, dump_agg=False):
         for r in (self.m1_rate, self.m5_rate, self.m15_rate):
             r.tick()
         ret = []
         elapsed = time.time() - self.start_time
-        ret.append(MV("%s.count" % self.name, self.count))
-        ret.append(MV("%s.rate_avg" % self.name, float(self.count) / elapsed))
-        ret.append(MV("%s.rate_1m" % self.name, self.m1_rate.rate()))
-        ret.append(MV("%s.rate_5m" % self.name, self.m5_rate.rate()))
-        ret.append(MV("%s.rate_15m" % self.name, self.m15_rate.rate()))
+        ret.append(MV( "%s.count" % self.name,
+            self.count, dump_agg=dump_agg and 'sum' ))
+        ret.append(MV( "%s.rate_avg" % self.name,
+            float(self.count) / elapsed, dump_agg=dump_agg and 'average' ))
+        ret.append(MV( "%s.rate_1m" % self.name,
+            self.m1_rate.rate(), dump_agg=dump_agg and 'average' ))
+        ret.append(MV( "%s.rate_5m" % self.name,
+            self.m5_rate.rate(), dump_agg=dump_agg and 'average' ))
+        ret.append(MV( "%s.rate_15m" % self.name,
+            self.m15_rate.rate(), dump_agg=dump_agg and 'average' ))
         return ret

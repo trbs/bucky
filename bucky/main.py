@@ -96,6 +96,13 @@ def options():
             metavar="NAME", default="INFO",
             help="Logging output verbosity [%default]"
         ),
+        op.make_option("--dump-aggregation-methods",
+            dest="dump_aggregation_methods",
+            default=cfg.dump_aggregation_methods, action="store_true",
+            help="Force bucky to dump metric names and aggregation methods,"
+                " derived from metric type, to stdout (if such information is"
+                " exposed via collectd or statsd types) as samples are collected."
+        ),
     ]
 
 
