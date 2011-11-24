@@ -48,7 +48,7 @@ class CarbonClient(object):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 self.sock.connect((self.ip, self.port))
-                log.info("Connected to Carbon at %s:%s" % peer)
+                log.info("Connected to Carbon at %s:%s" % (self.ip, self.port))
                 return
             except socket.error, e:
                 if i+1 >= self.max_reconnects:
