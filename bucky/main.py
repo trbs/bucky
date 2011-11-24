@@ -116,6 +116,10 @@ def main():
         cfgfile = None
     load_config(cfgfile, full_trace=opts.full_trace)
 
+    # Mandatory second commandline
+    #  processing pass to override values in cfg
+    parser.parse_args(values=cfg)
+
     configure_logging()
 
     sampleq = Queue.Queue()
