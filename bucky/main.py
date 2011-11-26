@@ -96,12 +96,12 @@ def options():
             metavar="NAME", default="INFO",
             help="Logging output verbosity [%default]"
         ),
-        op.make_option("--dump-aggregation-methods",
-            dest="dump_aggregation_methods",
-            default=cfg.dump_aggregation_methods, action="store_true",
+        op.make_option("--aggregation-methods-db",
+            dest="aggregation_methods_db", metavar="PATH",
+            default=cfg.aggregation_methods_db,
             help="Force bucky to dump metric names and aggregation methods,"
-                " derived from metric type, to stdout (if such information is"
-                " exposed via collectd or statsd types) as samples are collected."
+                " derived from metric type, to specified sqlite3 database (if such"
+                " information is exposed via collectd or statsd types) as samples are collected."
         ),
     ]
 
@@ -134,6 +134,10 @@ def main():
         stypes.append(collectd.CollectDServer)
     if opts.statsd_enabled:
         stypes.append(statsd.StatsDServer)
+
+    if cfg.aggregation_methods_db:
+        cfg.aggregation_methods_db =\
+            AggregationMethodDB(cfg.aggregation_methods_db)
 
     servers = []
     for stype in stypes:

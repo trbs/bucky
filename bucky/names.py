@@ -14,7 +14,13 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+import logging
+import time
+
 import bucky.cfg as cfg
+
+
+log = logging.getLogger(__name__)
 
 
 __host_trim__ = None
@@ -70,3 +76,34 @@ def statname(host, nameparts):
         parts = strip_duplicates(parts)
     return ".".join(parts)
 
+
+
+class AggregationMethodDB(object):
+
+    def __init__(self, db_path):
+        try:
+            import sqlite3
+        except ImportError:
+            try:
+                import pysqlite2.dbapi2 as sqlite3
+            except ImportError:
+                raise ImportError( "Unable to find any"
+                    " dbapi2-compliant sqlite3 interface module: sqlite3, pysqlite2" )
+        self._db = sqlite3.connect(db_path)
+        self._cursor = self._db.cursor()
+        self._cursor.execute( "CREATE TABLE IF NOT EXISTS"
+            " aggregation_methods (name TEXT, method TEXT, first_seen INT)" )
+        self._cursor.execute( "CREATE UNIQUE INDEX IF NOT EXISTS"
+            " am_nodup ON aggregation_methods (name, method)" )
+
+    def log(name, method):
+        try:
+            self._cursor.execute( "INSERT OR REPLACE INTO"
+                    " aggregation_methods (name, method, first_seen) VALUES (?, ?, ?)",
+                (name, method, int(time.time())) )
+        except self._db.IntegrityError:
+            self._db.rollback()
+        self._db.commit()
+
+    def __del__(self):
+        self._db.close()

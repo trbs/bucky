@@ -18,6 +18,7 @@ import os
 import sys
 import struct
 
+import bucky.cfg as cfg
 from bucky.errors import ConfigError, ProtocolError
 from bucky.names import statname
 from bucky.udpserver import UDPServer
@@ -277,7 +278,7 @@ class CollectDServer(UDPServer):
         self.queue = queue
         self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
-        self.dump_agg = cfg.dump_aggregation_methods
+        self.use_amdb = cfg.aggregation_methods_db
         self.prev_samples = {}
 
     def handle(self, data, addr):
@@ -310,8 +311,8 @@ class CollectDServer(UDPServer):
             log.info("Last sample: %s" % self.last_sample)
             return
         handler, agg = handlers[vtype]
-        if self.dump_agg:
-            sys.stdout.write("%s %s\n" % (name, agg))
+        if self.use_amdb:
+            cfg.aggregation_methods_db.log(name, agg)
         return handler(name, val, time)
 
     def _calc_counter(self, name, val, time):

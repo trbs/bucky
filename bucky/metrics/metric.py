@@ -15,16 +15,17 @@
 # Copyright 2011 Cloudant, Inc.
 
 import time
-import sys
+
+import bucky.cfg as cfg
 
 
 class MetricValue(object):
-    def __init__(self, name, value, now=None, dump_agg=False):
+    def __init__(self, name, value, now=None, use_amdb=False):
         self.name = name
         self.value = value
         self.time = now or time.time()
-        if dump_agg:
-            sys.stdout.write("%s %s\n" % (name, dump_agg))
+        if use_amdb:
+            cfg.aggregation_methods_db.log(name, use_amdb)
 
 class Metric(object):
     def update(self, value):

@@ -27,5 +27,5 @@ class Counter(Metric):
     def clear(self):
         self.value = 0
 
-    def metrics(self, dump_agg=False):
-        return [MV(self.name, self.count, dump_agg=dump_agg and 'sum')]
+    def metrics(self, use_amdb=False):
+        return [MV(self.name, self.count, use_amdb=use_amdb and 'sum')]
