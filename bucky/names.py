@@ -16,6 +16,7 @@
 
 import logging
 import time
+import threading
 
 import bucky.cfg as cfg
 
@@ -89,21 +90,29 @@ class AggregationMethodDB(object):
             except ImportError:
                 raise ImportError( "Unable to find any"
                     " dbapi2-compliant sqlite3 interface module: sqlite3, pysqlite2" )
-        self._db = sqlite3.connect(db_path)
-        self._cursor = self._db.cursor()
-        self._cursor.execute( "CREATE TABLE IF NOT EXISTS"
-            " aggregation_methods (name TEXT, method TEXT, first_seen INT)" )
-        self._cursor.execute( "CREATE UNIQUE INDEX IF NOT EXISTS"
-            " am_nodup ON aggregation_methods (name, method)" )
+        self._module = sqlite3
+        self._db_path = db_path
+        self._db_objs = threading.local()
+        self._init_schema()
 
-    def log(name, method):
+    def _init_schema(self):
+        with self._module.connect(self._db_path) as db:
+            cur = db.cursor()
+            cur.execute( "CREATE TABLE IF NOT EXISTS"
+                " aggregation_methods (name TEXT, method TEXT, first_seen INT)" )
+            cur.execute( "CREATE UNIQUE INDEX IF NOT EXISTS"
+                " am_nodup ON aggregation_methods (name, method)" )
+
+    def log(self, name, method):
         try:
-            self._cursor.execute( "INSERT OR REPLACE INTO"
+            db, cursor = self._db_objs.db, self._db_objs.cursor
+        except AttributeError:
+            db = self._db_objs.db = self._module.connect(self._db_path)
+            cursor = self._db_objs.cursor = db.cursor()
+        try:
+            cursor.execute( "INSERT OR REPLACE INTO"
                     " aggregation_methods (name, method, first_seen) VALUES (?, ?, ?)",
                 (name, method, int(time.time())) )
-        except self._db.IntegrityError:
-            self._db.rollback()
-        self._db.commit()
-
-    def __del__(self):
-        self._db.close()
+        except db.IntegrityError:
+            db.rollback()
+        db.commit()

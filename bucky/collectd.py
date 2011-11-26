@@ -277,7 +277,7 @@ class CollectDServer(UDPServer):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
         self.parser = CollectDParser(cfg.collectd_types)
-        self.converter = CollectDConverter(cfg)
+        self.converter = CollectDConverter()
         self.use_amdb = cfg.aggregation_methods_db
         self.prev_samples = {}
 

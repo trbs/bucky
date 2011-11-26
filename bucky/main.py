@@ -25,6 +25,7 @@ import bucky.cfg as cfg
 import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
+import bucky.names as names
 import bucky.statsd as statsd
 
 
@@ -137,7 +138,7 @@ def main():
 
     if cfg.aggregation_methods_db:
         cfg.aggregation_methods_db =\
-            AggregationMethodDB(cfg.aggregation_methods_db)
+            names.AggregationMethodDB(cfg.aggregation_methods_db)
 
     servers = []
     for stype in stypes:
