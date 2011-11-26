@@ -19,6 +19,7 @@ import struct
 import threading
 import time
 
+import bucky.cfg as cfg
 from bucky.errors import ConfigError, ProtocolError
 from bucky.metrics.counter import Counter
 from bucky.metrics.gauge import Gauge
@@ -168,11 +169,11 @@ class MetricsDHandler(threading.Thread):
 
 
 class MetricsDServer(UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(MetricsDServer, self).__init__(cfg.metricsd_ip, cfg.metricsd_port)
         self.parser = MetricsDParser()
         self.use_amdb = cfg.aggregation_methods_db
-        self.handlers = self._init_handlers(queue, cfg)
+        self.handlers = self._init_handlers(queue)
 
     def handle(self, data, addr):
         try:
@@ -182,7 +183,7 @@ class MetricsDServer(UDPServer):
         except ProtocolError:
             log.exception("Error from: %s:%s" % addr)
 
-    def _init_handlers(self, queue, cfg):
+    def _init_handlers(self, queue):
         ret = []
         default = cfg.metricsd_default_interval
         handlers = cfg.metricsd_handlers

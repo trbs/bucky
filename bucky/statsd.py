@@ -161,7 +161,7 @@ class StatsDHandler(threading.Thread):
 
 
 class StatsDServer(udpserver.UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
         self.handler = StatsDHandler( queue,
             flush_time=cfg.statsd_flush_time,

@@ -141,10 +141,10 @@ def main():
 
     servers = []
     for stype in stypes:
-        servers.append(stype(sampleq, cfg))
+        servers.append(stype(sampleq))
         servers[-1].start()
 
-    cli = carbon.CarbonClient(cfg)
+    cli = carbon.CarbonClient()
 
     while True:
         try:

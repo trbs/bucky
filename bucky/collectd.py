@@ -226,9 +226,9 @@ class CollectDParser(object):
 
 
 class CollectDConverter(object):
-    def __init__(self, cfg):
+    def __init__(self):
         self.converters = dict(DEFAULT_CONVERTERS)
-        self._load_converters(cfg)
+        self._load_converters()
 
     def convert(self, sample):
         default = self.converters["_default"]
@@ -244,7 +244,7 @@ class CollectDConverter(object):
         stat = statname(sample.get("host", ""), name)
         return stat, sample["value_type"], sample["value"], int(sample["time"])
 
-    def _load_converters(self, cfg):
+    def _load_converters(self):
         cfg_conv = cfg.collectd_converters
         for conv in cfg_conv:
             self._add_converter(conv, cfg_conv[conv], source="config")
@@ -273,7 +273,7 @@ class CollectDConverter(object):
 
 
 class CollectDServer(UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
         self.parser = CollectDParser(cfg.collectd_types)
