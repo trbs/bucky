@@ -137,11 +137,11 @@ def main():
     sampleq = Queue.Queue()
 
     stypes = []
-    if opts.metricsd_enabled:
+    if cfg.metricsd_enabled:
         stypes.append(metricsd.MetricsDServer)
-    if opts.collectd_enabled:
+    if cfg.collectd_enabled:
         stypes.append(collectd.CollectDServer)
-    if opts.statsd_enabled:
+    if cfg.statsd_enabled:
         stypes.append(statsd.StatsDServer)
 
     servers = []
