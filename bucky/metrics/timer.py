@@ -32,5 +32,6 @@ class Timer(Metric):
         self.meter.mark()
         self.histogram.update(value)
 
-    def metrics(self):
-        return self.meter.metrics() + self.histogram.metrics()
+    def metrics(self, use_amdb=False):
+        return self.meter.metrics(use_amdb=use_amdb)\
+            + self.histogram.metrics(use_amdb=use_amdb)

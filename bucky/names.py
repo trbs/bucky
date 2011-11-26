@@ -14,7 +14,14 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+import logging
+import time
+import threading
+
 import bucky.cfg as cfg
+
+
+log = logging.getLogger(__name__)
 
 
 __host_trim__ = None
@@ -70,3 +77,42 @@ def statname(host, nameparts):
         parts = strip_duplicates(parts)
     return ".".join(parts)
 
+
+
+class AggregationMethodDB(object):
+
+    def __init__(self, db_path):
+        try:
+            import sqlite3
+        except ImportError:
+            try:
+                import pysqlite2.dbapi2 as sqlite3
+            except ImportError:
+                raise ImportError( "Unable to find any"
+                    " dbapi2-compliant sqlite3 interface module: sqlite3, pysqlite2" )
+        self._module = sqlite3
+        self._db_path = db_path
+        self._db_objs = threading.local()
+        self._init_schema()
+
+    def _init_schema(self):
+        with self._module.connect(self._db_path) as db:
+            cur = db.cursor()
+            cur.execute( "CREATE TABLE IF NOT EXISTS"
+                " aggregation_methods (name TEXT, method TEXT, first_seen INT)" )
+            cur.execute( "CREATE UNIQUE INDEX IF NOT EXISTS"
+                " am_nodup ON aggregation_methods (name, method)" )
+
+    def log(self, name, method):
+        try:
+            db, cursor = self._db_objs.db, self._db_objs.cursor
+        except AttributeError:
+            db = self._db_objs.db = self._module.connect(self._db_path)
+            cursor = self._db_objs.cursor = db.cursor()
+        try:
+            cursor.execute( "INSERT OR REPLACE INTO"
+                    " aggregation_methods (name, method, first_seen) VALUES (?, ?, ?)",
+                (name, method, int(time.time())) )
+        except db.IntegrityError:
+            db.rollback()
+        db.commit()

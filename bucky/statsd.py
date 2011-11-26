@@ -19,7 +19,9 @@ import math
 import re
 import threading
 import time
+import sys
 
+import bucky.cfg as cfg
 import bucky.udpserver as udpserver
 
 
@@ -27,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 class StatsDHandler(threading.Thread):
-    def __init__(self, queue, flush_time=10):
+    def __init__(self, queue, flush_time=10, use_amdb=False):
         super(StatsDHandler, self).__init__()
         self.setDaemon(True)
         self.queue = queue
@@ -35,6 +37,7 @@ class StatsDHandler(threading.Thread):
         self.counters = {}
         self.timers = {}
         self.flush_time = flush_time
+        self.use_amdb = use_amdb
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
@@ -116,8 +119,12 @@ class StatsDHandler(threading.Thread):
                 continue
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
+                if self.use_amdb:
+                    cfg.aggregation_methods_db.log(key, "average")
             else:
                 self.handle_counter(key, fields)
+                if self.use_amdb:
+                    cfg.aggregation_methods_db.log(key, "sum")
 
     def handle_key(self, key):
         for (rexp, repl) in self.key_res:
@@ -154,9 +161,11 @@ class StatsDHandler(threading.Thread):
 
 
 class StatsDServer(udpserver.UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
-        self.handler = StatsDHandler(queue, flush_time=cfg.statsd_flush_time)
+        self.handler = StatsDHandler( queue,
+            flush_time=cfg.statsd_flush_time,
+            use_amdb=cfg.aggregation_methods_db )
         self.handler.start()
 
     def handle(self, data, addr):

@@ -16,19 +16,23 @@
 
 import time
 
+import bucky.cfg as cfg
+
 
 class MetricValue(object):
-    def __init__(self, name, value, now=None):
+    def __init__(self, name, value, now=None, use_amdb=False):
         self.name = name
         self.value = value
         self.time = now or time.time()
+        if use_amdb:
+            cfg.aggregation_methods_db.log(name, use_amdb)
 
 class Metric(object):
     def update(self, value):
         raise NotImplemented()
-    
+
     def clear(self, value):
         raise NotImplemented()
-    
+
     def metrics(slef):
         raise NotImplemented()

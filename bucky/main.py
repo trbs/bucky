@@ -25,6 +25,7 @@ import bucky.cfg as cfg
 import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
+import bucky.names as names
 import bucky.statsd as statsd
 
 
@@ -96,6 +97,13 @@ def options():
             metavar="NAME", default="INFO",
             help="Logging output verbosity [%default]"
         ),
+        op.make_option("--aggregation-methods-db",
+            dest="aggregation_methods_db", metavar="PATH",
+            default=cfg.aggregation_methods_db,
+            help="Force bucky to dump metric names and aggregation methods,"
+                " derived from metric type, to specified sqlite3 database (if such"
+                " information is exposed via collectd or statsd types) as samples are collected."
+        ),
     ]
 
 
@@ -128,12 +136,16 @@ def main():
     if opts.statsd_enabled:
         stypes.append(statsd.StatsDServer)
 
+    if cfg.aggregation_methods_db:
+        cfg.aggregation_methods_db =\
+            names.AggregationMethodDB(cfg.aggregation_methods_db)
+
     servers = []
     for stype in stypes:
-        servers.append(stype(sampleq, cfg))
+        servers.append(stype(sampleq))
         servers[-1].start()
 
-    cli = carbon.CarbonClient(cfg)
+    cli = carbon.CarbonClient()
 
     while True:
         try:

@@ -19,6 +19,8 @@ import socket
 import sys
 import time
 
+import bucky.cfg as cfg
+
 
 log = logging.getLogger(__name__)
 
@@ -29,34 +31,29 @@ class DebugSocket(object):
 
 
 class CarbonClient(object):
-    def __init__(self, cfg):
-        self.debug = cfg.debug
-        self.ip = cfg.graphite_ip
-        self.port = cfg.graphite_port
-        self.max_reconnects = cfg.graphite_max_reconnects
-        self.reconnect_delay = cfg.graphite_reconnect_delay
-        if self.max_reconnects < 0:
-            self.max_reconnects = sys.maxint
+    def __init__(self):
+        if cfg.graphite_max_reconnects < 0:
+            cfg.graphite_max_reconnects = sys.maxint
         self.connect()
 
     def connect(self):
-        if self.debug:
+        if cfg.debug:
             log.debug("Connected the debug socket.")
             self.sock = DebugSocket()
             return
-        for i in xrange(self.max_reconnects):
+        for i in xrange(cfg.graphite_max_reconnects):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                self.sock.connect((self.ip, self.port))
+                self.sock.connect((cfg.graphite_ip, cfg.graphite_port))
                 log.info("Connected to Carbon at %s:%s" % peer)
                 return
             except socket.error, e:
-                if i+1 >= self.max_reconnects:
+                if i+1 >= cfg.graphite_max_reconnects:
                     raise
-                args = (self.ip, self.port, e)
+                args = (cfg.graphite_ip, cfg.graphite_port, e)
                 log.error("Failed to connect to %s:%s: %s" % args)
-                if self.reconnect_delay > 0:
-                    time.sleep(self.reconnect_delay)
+                if cfg.graphite_reconnect_delay > 0:
+                    time.sleep(cfg.graphite_reconnect_delay)
 
     def reconnect(self):
         self.close()
@@ -70,12 +67,12 @@ class CarbonClient(object):
 
     def send(self, stat, value, mtime):
         mesg = "%s %s %s\n" % (stat, value, mtime)
-        for i in xrange(self.max_reconnects):
+        for i in xrange(cfg.graphite_max_reconnects):
             try:
                 self.sock.sendall(mesg)
                 return
             except socket.error, err:
-                if i+1 >= self.max_reconnects:
+                if i+1 >= cfg.graphite_max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s" % err)
                 self.reconnect()

@@ -19,6 +19,7 @@ import struct
 import threading
 import time
 
+import bucky.cfg as cfg
 from bucky.errors import ConfigError, ProtocolError
 from bucky.metrics.counter import Counter
 from bucky.metrics.gauge import Gauge
@@ -121,7 +122,7 @@ class MetricsDParser(object):
 
 
 class MetricsDHandler(threading.Thread):
-    def __init__(self, outbox, interval):
+    def __init__(self, outbox, interval, use_amdb=False):
         super(MetricsDHandler, self).__init__()
         self.setDaemon(True)
         self.interval = interval
@@ -129,6 +130,7 @@ class MetricsDHandler(threading.Thread):
         self.inbox = Queue.Queue()
         self.next_update = time.time() + self.interval
         self.metrics = {}
+        self.use_amdb = use_amdb
 
     def enqueue(self, mc):
         self.inbox.put(mc)
@@ -162,15 +164,16 @@ class MetricsDHandler(threading.Thread):
 
     def flush_updates(self):
         for _, metric in self.metrics.iteritems():
-            for v in metric.metrics():
+            for v in metric.metrics(use_amdb=self.use_amdb):
                 self.outbox.put((v.name, v.value, v.time))
 
 
 class MetricsDServer(UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(MetricsDServer, self).__init__(cfg.metricsd_ip, cfg.metricsd_port)
         self.parser = MetricsDParser()
-        self.handlers = self._init_handlers(queue, cfg)
+        self.use_amdb = cfg.aggregation_methods_db
+        self.handlers = self._init_handlers(queue)
 
     def handle(self, data, addr):
         try:
@@ -180,12 +183,13 @@ class MetricsDServer(UDPServer):
         except ProtocolError:
             log.exception("Error from: %s:%s" % addr)
 
-    def _init_handlers(self, queue, cfg):
+    def _init_handlers(self, queue):
         ret = []
         default = cfg.metricsd_default_interval
         handlers = cfg.metricsd_handlers
         if not len(handlers):
-            ret = [(None, MetricsDHandler(queue, default))]
+            ret = [(None, MetricsDHandler(
+                queue, default, use_amdb=self.use_amdb ))]
             ret[0][1].start()
             return ret
         for item in handlers:

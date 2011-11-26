@@ -20,12 +20,12 @@ class Counter(Metric):
     def __init__(self, name):
         self.name = name
         self.count = 0
-    
+
     def update(self, value):
         self.value += value
-    
+
     def clear(self):
         self.value = 0
-    
-    def metrics(self):
-        return [MV(self.name, self.count)]
+
+    def metrics(self, use_amdb=False):
+        return [MV(self.name, self.count, use_amdb=use_amdb and 'sum')]

@@ -53,18 +53,24 @@ class Histogram(Metric):
             self.maxv = value
         self._update_variance(value)
 
-    def metrics(self):
+    def metrics(self, use_amdb=False):
         ret = []
-        ret.append(MV("%s.count" % self.name, self.count))
-        ret.append(MV("%s.sum" % self.name, self.sum))
-        ret.append(MV("%s.min" % self.name, self.minv))
-        ret.append(MV("%s.max" % self.name, self.maxv))
+        ret.append(MV( "%s.count" % self.name,
+            self.count, use_amdb=use_amdb and 'sum' ))
+        ret.append(MV( "%s.sum" % self.name,
+            self.sum, use_amdb=use_amdb and 'sum' ))
+        ret.append(MV( "%s.min" % self.name,
+            self.minv, use_amdb=use_amdb and 'min' ))
+        ret.append(MV( "%s.max" % self.name,
+            self.maxv, use_amdb=use_amdb and 'max' ))
         if self.count > 0:
-            ret.append(MV("%s.mean" % self.name, self.sum / self.count))
-            ret.append(MV("%s.stddev" % self.name, self._stddev()))
+            ret.append(MV( "%s.mean" % self.name,
+                self.sum / self.count, use_amdb=use_amdb and 'average' ))
+            ret.append(MV( "%s.stddev" % self.name,
+                self._stddev(), use_amdb=use_amdb and 'average' ))
             for disp, val in self._percentiles():
                 name = "%s.%s" % (self.name, disp)
-                ret.append(MV(name, val))
+                ret.append(MV(name, val, use_amdb=use_amdb and 'average'))
         return ret
 
     def _stddev(self):
@@ -80,7 +86,7 @@ class Histogram(Metric):
         newm = oldm + ((value - oldm) / self.count)
         news = olds + ((value - oldm) * (value - newm))
         self.variance = (newm, news)
-    
+
     def _percentiles(self):
         values = self.sample.values()
         values.sort()

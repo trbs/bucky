@@ -26,6 +26,7 @@ graphite_max_reconnects = 3
 graphite_reconnect_delay = 5
 
 full_trace = False
+aggregation_methods_db = False
 
 name_prefix = None
 name_postfix = None

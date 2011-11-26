@@ -15,8 +15,10 @@
 import copy
 import logging
 import os
+import sys
 import struct
 
+import bucky.cfg as cfg
 from bucky.errors import ConfigError, ProtocolError
 from bucky.names import statname
 from bucky.udpserver import UDPServer
@@ -224,9 +226,9 @@ class CollectDParser(object):
 
 
 class CollectDConverter(object):
-    def __init__(self, cfg):
+    def __init__(self):
         self.converters = dict(DEFAULT_CONVERTERS)
-        self._load_converters(cfg)
+        self._load_converters()
 
     def convert(self, sample):
         default = self.converters["_default"]
@@ -242,7 +244,7 @@ class CollectDConverter(object):
         stat = statname(sample.get("host", ""), name)
         return stat, sample["value_type"], sample["value"], int(sample["time"])
 
-    def _load_converters(self, cfg):
+    def _load_converters(self):
         cfg_conv = cfg.collectd_converters
         for conv in cfg_conv:
             self._add_converter(conv, cfg_conv[conv], source="config")
@@ -271,11 +273,12 @@ class CollectDConverter(object):
 
 
 class CollectDServer(UDPServer):
-    def __init__(self, queue, cfg):
+    def __init__(self, queue):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
         self.parser = CollectDParser(cfg.collectd_types)
-        self.converter = CollectDConverter(cfg)
+        self.converter = CollectDConverter()
+        self.use_amdb = cfg.aggregation_methods_db
         self.prev_samples = {}
 
     def handle(self, data, addr):
@@ -298,16 +301,19 @@ class CollectDServer(UDPServer):
 
     def calculate(self, name, vtype, val, time):
         handlers = {
-            0: self._calc_counter,  # counter
-            1: lambda _name, v, _time: v,         # gauge
-            2: self._calc_derive,  # derive
-            3: self._calc_absolute  # absolute
+            0: (self._calc_counter, 'sum'), # counter
+            1: (lambda _name, v, _time: v, 'average'), # gauge
+            2: (self._calc_derive, 'sum'), # derive
+            3: (self._calc_absolute, 'average') # absolute
         }
         if vtype not in handlers:
             log.error("Invalid value type %s for %s" % (vtype, name))
             log.info("Last sample: %s" % self.last_sample)
             return
-        return handlers[vtype](name, val, time)
+        handler, agg = handlers[vtype]
+        if self.use_amdb:
+            cfg.aggregation_methods_db.log(name, agg)
+        return handler(name, val, time)
 
     def _calc_counter(self, name, val, time):
         # I need to figure out how to handle wrapping
