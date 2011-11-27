@@ -35,7 +35,7 @@ class CarbonClient(object):
         self.port = cfg.graphite_port
         self.max_reconnects = cfg.graphite_max_reconnects
         self.reconnect_delay = cfg.graphite_reconnect_delay
-        if self.max_reconnects < 0:
+        if self.max_reconnects <= 0:
             self.max_reconnects = sys.maxint
         self.connect()
 
