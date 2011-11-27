@@ -322,7 +322,7 @@ class CollectDServer(UDPServer):
             log.error("Invalid COUNTER update for: %s" % name)
             log.info("Last sample: %s" % self.last_sample)
             return
-        return (val - pval) / (time - ptime)
+        return float(val - pval) / (time - ptime)
 
     def _calc_derive(self, name, val, time):
         # Like counter, I need to figure out wrapping
@@ -335,7 +335,7 @@ class CollectDServer(UDPServer):
             log.debug("Invalid DERIVE update for: %s" % name)
             log.debug("Last sample: %s" % self.last_sample)
             return
-        return (val - pval) / (time - ptime)
+        return float(val - pval) / (time - ptime)
 
     def _calc_absolute(self, name, val, time):
         if name not in self.prev_samples:
@@ -347,4 +347,4 @@ class CollectDServer(UDPServer):
             log.error("Invalid ABSOLUTE update for: %s" % name)
             log.info("Last sample: %s" % self.last_sample)
             return
-        return val / (time - ptime)
+        return float(val) / (time - ptime)
