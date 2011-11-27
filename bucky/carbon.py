@@ -35,8 +35,6 @@ class CarbonClient(object):
         self.port = cfg.graphite_port
         self.max_reconnects = cfg.graphite_max_reconnects
         self.reconnect_delay = cfg.graphite_reconnect_delay
-        if self.max_reconnects < 0:
-            self.max_reconnects = sys.maxint
         self.connect()
 
     def connect(self):
@@ -44,14 +42,16 @@ class CarbonClient(object):
             log.debug("Connected the debug socket.")
             self.sock = DebugSocket()
             return
-        for i in xrange(self.max_reconnects):
+        attempt = 0
+        while True:
+            attempt += 1
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 self.sock.connect((self.ip, self.port))
                 log.info("Connected to Carbon at %s:%s" % (self.ip, self.port))
                 return
             except socket.error, e:
-                if i+1 >= self.max_reconnects:
+                if self.max_reconnects > 0 and attempt >= self.max_reconnects:
                     raise
                 args = (self.ip, self.port, e)
                 log.error("Failed to connect to %s:%s: %s" % args)
@@ -70,12 +70,14 @@ class CarbonClient(object):
 
     def send(self, stat, value, mtime):
         mesg = "%s %s %s\n" % (stat, value, mtime)
-        for i in xrange(self.max_reconnects):
+        attempt = 0
+        while True:
+            attempt += 1
             try:
                 self.sock.sendall(mesg)
                 return
             except socket.error, err:
-                if i+1 >= self.max_reconnects:
+                if self.max_reconnects > 0 and attempt >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s" % err)
                 self.reconnect()
