@@ -23,8 +23,13 @@ cfg.debug = True
 
 
 class TQueue(Queue.Queue):
-    def get(self, timeout=2.0):
-        return Queue.Queue.get(self, True, timeout)
+    def get(self, blocking=True, timeout=2.0):
+        try:
+            return Queue.Queue.get(self, blocking, timeout)
+        except Queue.Empty:
+            if blocking:
+                raise
+            return None
 
 
 class set_cfg(object):
@@ -57,13 +62,17 @@ class udp_srv(object):
                 func(q, s)
             finally:
                 s.close()
-                for i in range(5):
-                    if not s.is_alive():
-                        return
-                    time.sleep(0.1)
-                raise RuntimeError("Server didn't die.")
+                if not self.closed(s):
+                    raise RuntimeError("Server didn't die.")
         run.func_name = func.func_name
         return run
+
+    def closed(self, s):
+        for i in range(5):
+            if not s.is_alive():
+                return True
+            time.sleep(0.1)
+        return False
 
 
 def same_stat(name, value, stat):
