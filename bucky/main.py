@@ -167,6 +167,13 @@ def load_config(cfgfile, full_trace=False):
 
 
 def configure_logging():
+    levels = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
     logfmt = "[%(levelname)s] %(module)s - %(message)s"
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(logfmt))
@@ -174,8 +181,8 @@ def configure_logging():
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
     if cfg.debug:
-        cfg.log_level = "DEBUG"
-    handler.setLevel(cfg.log_level)
+        cfg.log_level = "debug"
+    handler.setLevel(levels.get(cfg.log_level.lower(), logging.INFO))
 
 
 if __name__ == '__main__':
