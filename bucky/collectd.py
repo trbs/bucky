@@ -33,12 +33,13 @@ class CPUConverter(object):
 class InterfaceConverter(object):
     PRIORITY = -1
     def __call__(self, sample):
-        return [
+        return filter(None, [
             "interface",
+            sample.get("plugin_instance", ""),
             sample.get("type_instance", ""),
             sample["type"],
             sample["value_name"]
-        ]
+        ])
 
 
 class MemoryConverter(object):
