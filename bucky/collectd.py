@@ -278,6 +278,7 @@ class CollectDServer(UDPServer):
         self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
         self.prev_samples = {}
+        self.last_sample = None
 
     def handle(self, data, addr):
         try:
@@ -294,7 +295,8 @@ class CollectDServer(UDPServer):
                     self.queue.put((name, val, time))
         except ProtocolError, e:
             log.error("Protocol error: %s" % e)
-            log.info("Last sample: %s" % self.last_sample)
+            if self.last_sample is not None:
+                log.info("Last sample: %s" % self.last_sample)
         return True
 
     def calculate(self, name, vtype, val, time):
