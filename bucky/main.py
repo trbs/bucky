@@ -107,6 +107,15 @@ def main():
     )
     opts, args = parser.parse_args()
 
+    # Logging have to be configured BEFORE load_config,
+    #  where it can (and should) be already used
+    logfmt = "[%(levelname)s] %(module)s - %(message)s"
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(logfmt))
+    handler.setLevel(logging.ERROR) # Overridden by configuration
+    logging.root.addHandler(handler)
+    logging.root.setLevel(logging.DEBUG)
+
     if args:
         try:
             cfgfile, = args
@@ -116,16 +125,23 @@ def main():
         cfgfile = None
     load_config(cfgfile, full_trace=opts.full_trace)
 
-    configure_logging()
+    if cfg.debug:
+        cfg.log_level = "DEBUG"
+
+    # Mandatory second commandline
+    #  processing pass to override values in cfg
+    parser.parse_args(values=cfg)
+
+    handler.setLevel(cfg.log_level)
 
     sampleq = Queue.Queue()
 
     stypes = []
-    if opts.metricsd_enabled:
+    if cfg.metricsd_enabled:
         stypes.append(metricsd.MetricsDServer)
-    if opts.collectd_enabled:
+    if cfg.collectd_enabled:
         stypes.append(collectd.CollectDServer)
-    if opts.statsd_enabled:
+    if cfg.statsd_enabled:
         stypes.append(statsd.StatsDServer)
 
     servers = []
@@ -164,18 +180,6 @@ def load_config(cfgfile, full_trace=False):
             continue
         if name in cfg_mapping:
             setattr(cfg, name, cfg_mapping[name])
-
-
-def configure_logging():
-    logfmt = "[%(levelname)s] %(module)s - %(message)s"
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter(logfmt))
-    handler.setLevel(logging.ERROR) # Overridden by configuration
-    logging.root.addHandler(handler)
-    logging.root.setLevel(logging.DEBUG)
-    if cfg.debug:
-        cfg.log_level = "DEBUG"
-    handler.setLevel(cfg.log_level)
 
 
 if __name__ == '__main__':
