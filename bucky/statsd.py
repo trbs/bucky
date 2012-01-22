@@ -82,6 +82,8 @@ class StatsDHandler(threading.Thread):
         for k, v in self.counters.iteritems():
             stat = "stats.%s" % k
             self.queue.put((stat, v / self.flush_time, stime))
+            stat = "stats_counts.%s" % k
+            self.queue.put((stat, v, stime))
             self.counters[k] = 0
             ret += 1
         return ret
