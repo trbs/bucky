@@ -109,15 +109,14 @@ class StatsDHandler(threading.Thread):
         # but the code allows for name:v1|t1:v2|t2 etc etc.
         # In the interest of compatibility, I'll maintain
         # the behavior.
-        for sample in bits:
-            fields = sample.split("|")
-            if len(fields) < 2:
-                self.bad_line()
-                continue
-            if fields[1] == "ms":
-                self.handle_timer(key, fields)
-            else:
-                self.handle_counter(key, fields)
+        sample = bits[0]
+        fields = sample.split("|")
+        if len(fields) < 2:
+            self.bad_line()
+        if fields[1] == "ms":
+            self.handle_timer(key, fields)
+        else:
+            self.handle_counter(key, fields)
 
     def handle_key(self, key):
         for (rexp, repl) in self.key_res:
