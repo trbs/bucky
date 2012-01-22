@@ -97,7 +97,7 @@ class StatsDHandler(threading.Thread):
             self.handle_line(line)
 
     def handle_line(self, line):
-        print line
+        log.debug("Received: '%s'" % line)
         bits = line.split(":", 1)
         key = self.handle_key(bits.pop(0))
 
