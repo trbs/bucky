@@ -2,8 +2,8 @@ Bucky
 -----
 
 Bucky is a small server for collecting and translating metrics.
-It can current collect metric data from CollectD, StatsD and MetricsD
-and push those metrics to a client: memcache, mysql or carbon-Graphite.
+It receive metric data from CollectD, StatsD and MetricsD
+and proxy it to memcache, mysql or graphite.
 
 Installation
 ------------
@@ -54,8 +54,8 @@ permitting. Your mileage may vary based on network and disk capabilities.
 Command Line Options
 --------------------
 
-The command line options are limited to controlling the network
-parameters. If you want to configure some of the more intricate
+The command line options will override any of the options in your config
+files. If you want to configure some of the more intricate
 workings you'll need to use a config file. Here's the `bucky -h`
 output::
 
@@ -253,25 +253,31 @@ Configuring a Bucky Client
 --------------------------
 
 After configuring one or more bucky servers enable a client, (graphite,
-memcache or mysql) to begin sending stats somewhere.
+memcache or mysql) to begin sending stats somewhere. 
 
 
 Configuring a Graphite Client
 -----------------------------
 
-set "graphite_enabled = True" and configure the options
-to send to the correct ip and port of your carbon line
-port, typically tcp port 2003.
+Setting::
+    graphite_enabled = True
+    
+and configure the options to send to the correct ip and
+port of your carbon line receiver port, typically tcp port 2003.
 
 
 Configuring a Memcache Client
 -----------------------------
 
-set "memcache_enabled = True" in your config and specify as
-many hosts as you want in the config along with their port,
-typically 11211:
+Setting::
 
-memcache_ip = ["10.202.142.175:11211", "10.40.75.126:11211"]
+    "memcache_enabled = True"
+
+in your config will enable the client. You will need to
+specify memcache hosts in the config along with their port,
+typically 11211::
+
+    memcache_ip = ["10.202.142.175:11211", "10.40.75.126:11211"]
 
 
 Configuring a MySQL Client
@@ -284,7 +290,7 @@ your query. The behind development of the mysql client
 is to have a index of metric keys available for easy querying.
 
 Set "mysql_enabled = True" and configure the releveant options.
-Some query examples include:
+Some query examples include::
 
 mysql_query = "INSERT IGNORE INTO table VALUES('%s', NOW());"
 mysql_query = "INSERT INTO table VALUES('%s', '0', '0', '0', '0') \
