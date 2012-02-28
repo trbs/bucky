@@ -292,7 +292,10 @@ class CollectDServer(UDPServer):
                     continue
                 val = self.calculate(name, vtype, val, time)
                 if val is not None:
-                    self.queue.put((name, val, time))
+                    try:
+                        self.queue.put((name, val, time))
+                    except:
+                        pass
         except ProtocolError, e:
             log.error("Protocol error: %s" % e)
             if self.last_sample is not None:

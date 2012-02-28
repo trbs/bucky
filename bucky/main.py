@@ -14,92 +14,137 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+"""
+
+    2012 Karsten McMinn - convert graphite to a threaded client
+    adding mysql and memcache clients, fixed configuration bugs
+    among other bits
+
+"""
+
 import logging
 import optparse as op
 import os
 import Queue
 import sys
-
 import bucky
 import bucky.cfg as cfg
 import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+import bucky.bmysql as bmysql
+import bucky.bmemcache as bmemcache
 
 
 log = logging.getLogger(__name__)
 
 
-__usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
+__usage__ = "%prog [CONFIG_FILE] [OPTIONS]"
 __version__ = "bucky %s" % bucky.__version__
 
+
 def options():
+    """
+    sets optparse command line options
+    """
     return [
-        op.make_option("--debug", dest="debug", default=False,
+        op.make_option("--debug", dest="debug",
             action="store_true",
-            help="Put server into debug mode. [%default]"
+            help="Put server into debug mode."
         ),
         op.make_option("--metricsd-ip", dest="metricsd_ip", metavar="IP",
-            default=cfg.metricsd_ip,
-            help="IP address to bind for the MetricsD UDP socket [%default]"
+            help="IP address to bind for the MetricsD UDP socket"
         ),
         op.make_option("--metricsd-port", dest="metricsd_port", metavar="INT",
-            type="int", default=cfg.metricsd_port,
-            help="Port to bind for the MetricsD UDP socket [%default]"
+            type="int", help="Port to bind for the MetricsD UDP socket"
         ),
         op.make_option("--disable-metricsd", dest="metricsd_enabled",
-            default=cfg.metricsd_enabled, action="store_false",
-            help="Disable the MetricsD UDP server"
+            action="store_false", help="Disable the MetricsD UDP server"
         ),
         op.make_option("--collectd-ip", dest="collectd_ip", metavar="IP",
-            default=cfg.collectd_ip,
-            help="IP address to bind for the CollectD UDP socket [%default]"
+            help="IP address to bind for the CollectD UDP socket"
         ),
         op.make_option("--collectd-port", dest="collectd_port", metavar="INT",
-            type='int', default=cfg.collectd_port,
-            help="Port to bind for the CollectD UDP socket [%default]"
+            type='int', help="Port to bind for the CollectD UDP socket"
         ),
         op.make_option("--collectd-types", dest="collectd_types",
-            metavar="FILE", action='append', default=cfg.collectd_types,
-            help="Path to the collectd types.db file, can be specified multiple times"
+            metavar="FILE", action='append',
+            help="Path to the collectd types.db file, \
+                can be specified multiple times"
         ),
         op.make_option("--disable-collectd", dest="collectd_enabled",
-            default=cfg.collectd_enabled, action="store_false",
+            action="store_false",
             help="Disable the CollectD UDP server"
         ),
         op.make_option("--statsd-ip", dest="statsd_ip", metavar="IP",
-            default=cfg.statsd_ip,
-            help="IP address to bind for the StatsD UDP socket [%default]"
+            help="IP address to bind for the StatsD UDP socket"
         ),
         op.make_option("--statsd-port", dest="statsd_port", metavar="INT",
-            type="int", default=cfg.statsd_port,
-            help="Port to bind for the StatsD UDP socket [%default]"
+            type="int", help="Port to bind for the StatsD UDP socket"
         ),
         op.make_option("--disable-statsd", dest="statsd_enabled",
-            default=cfg.statsd_enabled, action="store_false",
-            help="Disable the StatsD server"
+            action="store_false", help="Disable the StatsD server"
         ),
         op.make_option("--graphite-ip", dest="graphite_ip", metavar="IP",
-            default=cfg.graphite_ip,
-            help="IP address of the Graphite/Carbon server [%default]"
+            help="IP address of the Graphite/Carbon server"
         ),
         op.make_option("--graphite-port", dest="graphite_port", metavar="INT",
-            type="int", default=cfg.graphite_port,
-            help="Port of the Graphite/Carbon server [%default]"
+            type="int", help="Port of the Graphite/Carbon server"
+        ),
+        op.make_option("--disable-graphite", dest="graphite_enabled",
+            action="store_false", help="Disable sending stats to Graphite"
+        ),
+        op.make_option("--disable-mysql", dest="mysql_enabled",
+            action="store_false", help="Disable sending stats to MySQL"
+        ),
+        op.make_option("--mysql-ip", dest="mysql_ip", metavar="IP",
+            help="IP/Hostname of the MySQL Server"
+        ),
+        op.make_option("--mysql-port", dest="mysql_port", metavar="INT",
+            help="Port of the MySQL server" 
+        ),
+        op.make_option("--mysql-db", dest="mysql_db",
+            help="Database Name of the MySQL Server"
+        ),
+        op.make_option("--mysql-user", dest="mysql_user",
+            help="Username for the MySQL Database"
+        ),
+        op.make_option("--mysql-password", dest="mysql_pass",
+            help="Password for the MySQL Database"
+        ),
+        op.make_option("--mysql-query", dest="mysql_query",
+            help="query to use for mysql client"
+        ),
+        op.make_option("--disable-memcache", dest="memcache_enabled",
+            action="store_false", help="Disable Sending Stats to Memcache"
+        ),
+        op.make_option("--memcache-ip", dest="memcache_ip", metavar="IP",
+            help="IP/Hostname of the Memcache Server to send stats to"
+        ),
+        op.make_option("--memcache-port", dest="memcache_port", metavar="INT",
+            help="Port of the Memcache server"
         ),
         op.make_option("--full-trace", dest="full_trace",
-            default=cfg.full_trace, action="store_true",
-            help="Display full error if config file fails to load"
+            action="store_true", help="Display full error \
+            if config file fails to load"
+        ),
+        op.make_option("--client-threads", dest="client_threads",
+            help="Number of threads per client to use"
         ),
         op.make_option("--log-level", dest="log_level",
-            metavar="NAME", default="INFO",
-            help="Logging output verbosity [%default]"
+            metavar="NAME", help="Logging output verbosity"
         ),
     ]
 
 
 def main():
+    """
+    parse the config, start the queues, servers, client threads
+    and start main daemon loop
+    """
+
+    """ parse config and options, merge all to cfg """
     parser = op.OptionParser(
         usage=__usage__,
         version=__version__,
@@ -111,44 +156,99 @@ def main():
         try:
             cfgfile, = args
         except ValueError:
+            parser.print_help()
             parser.error("Too many arguments.")
     else:
-        cfgfile = None
-    load_config(cfgfile, full_trace=opts.full_trace)
+        print "Error: no config file specified"
+        parser.print_help()
+        sys.exit(1)
+ 
+
+    try:
+        vars = load_config(cfgfile, full_trace=cfg.full_trace)
+    except:
+        print "Error parsing config file: " + str(cfgfile)
+        parser.print_help()
+        sys.exit(1)
+
+    """ merge commandline options to cfg """
+    for attr, value in opts.__dict__.iteritems():
+        if attr in vars and value is not None:
+            print "setting: "+str(attr)
+            setattr(cfg, attr, value)
 
     configure_logging()
 
-    sampleq = Queue.Queue()
+    """ Queue for servers """
+    sampleq = Queue.Queue(maxsize=5000)
 
+    """ why do I need so many lists? """
     stypes = []
-    if opts.metricsd_enabled:
+    ccarbon = []
+    cmemcache = []
+    cmysql = []
+    queues = []
+    clients = []
+
+    if cfg.metricsd_enabled:
         stypes.append(metricsd.MetricsDServer)
-    if opts.collectd_enabled:
+    if cfg.collectd_enabled:
         stypes.append(collectd.CollectDServer)
-    if opts.statsd_enabled:
+    if cfg.statsd_enabled:
         stypes.append(statsd.StatsDServer)
+
+    if cfg.client_threads:
+        cores = int(cfg.client_threads)
+
+    if cfg.mysql_enabled:
+        queues.append(Queue.Queue(maxsize=2000))
+        for i in range(0, cores):
+            cmysql.append(bmysql.MysqlClient)
+        for client in cmysql:
+            clients.append(client(queues[-1], cfg))
+            clients[-1].start()
+
+    if cfg.memcache_enabled:
+        queues.append(Queue.Queue(maxsize=2000))
+        for i in range(0, cores):
+            cmemcache.append(bmemcache.MemcacheClient)
+        for client in cmemcache:
+            clients.append(client(queues[-1], cfg))
+            clients[-1].start()
+
+    if cfg.graphite_enabled:
+        queues.append(Queue.Queue(maxsize=2000))
+        for i in range(0, cores):
+            ccarbon.append(carbon.CarbonClient)
+        for client in ccarbon:
+            clients.append(client(queues[-1], cfg))
+            clients[-1].start()
 
     servers = []
     for stype in stypes:
         servers.append(stype(sampleq, cfg))
         servers[-1].start()
 
-    cli = carbon.CarbonClient(cfg)
-
     while True:
         try:
             stat, value, time = sampleq.get(True, 1)
-            cli.send(stat, value, time)
-        except Queue.Empty:
-            pass
-        for srv in servers:
-            if not srv.is_alive():
-                log.error("Server thread died. Exiting.")
-                break
+            for q in queues:
+                q.put((stat, value, time), True, 1)
+        except KeyboardInterrupt:
+            raise
+        except:
+            """ Queue.Full, Queue.Empty, et.al """
+            continue
+        else:
+            continue
 
 
 def load_config(cfgfile, full_trace=False):
+    """
+    loads a configfile and evals data in it
+    """
     cfg_mapping = vars(cfg)
+    cfg_vars = []
     try:
         if cfgfile is not None:
             execfile(cfgfile, cfg_mapping)
@@ -162,11 +262,18 @@ def load_config(cfgfile, full_trace=False):
     for name in dir(cfg):
         if name.startswith("_"):
             continue
+        else:
+            cfg_vars.append(name)
         if name in cfg_mapping:
             setattr(cfg, name, cfg_mapping[name])
+    return cfg_vars
 
 
 def configure_logging():
+    """
+    configures logging verbosity based on
+    level specified in config file
+    """
     levels = {
         'debug': logging.DEBUG,
         'info': logging.INFO,
@@ -177,7 +284,7 @@ def configure_logging():
     logfmt = "[%(levelname)s] %(module)s - %(message)s"
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(logfmt))
-    handler.setLevel(logging.ERROR) # Overridden by configuration
+    handler.setLevel(logging.ERROR)
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
     if cfg.debug:
@@ -186,10 +293,4 @@ def configure_logging():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
-    except Exception, e:
-        raise
-        print e
+    main()

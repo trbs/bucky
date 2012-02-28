@@ -1,0 +1,102 @@
+# Standard debug and log level
+debug = False
+log_level = "ERROR"
+
+# Whether to print the entire stack trace for errors encountered
+# when loading the config file
+full_trace = False
+
+# The number of threads to use per enabled bucky client,
+# increasing this can increase the amount of queries the clients may
+# be able to handle. default is to use one thread per core.
+# client_threads = 8
+
+# Basic metricsd server conifguration
+# default interval affects flushing data to Graphite
+metricsd_ip = "127.0.0.1"
+metricsd_port = 23632
+metricsd_enabled = False
+metricsd_default_interval = 10.0
+
+# You can specify the frequency of flushes to Graphite based on
+# the metric name used for each metric. These are specified as
+# regular expressions. An entry in this list should be a 3-tuple
+# that is: (regexp, frequency, priority)
+#
+# The regexp is applied with the match method. Frequency should be
+# in seconds. Priority is used to break ties when a metric name
+# matches more than one handler. (The largest priority wins)
+metricsd_handlers = []
+
+# Basic collectd server configuration
+collectd_ip = "127.0.0.1"
+collectd_port = 28883
+collectd_enabled = True
+collectd_types = []
+collectd_converters = {}
+collectd_use_entry_points = True
+
+# Statsd server
+# Basic statsd configuration
+# flush time affects how frequently data is flushedh to Graphite
+statsd_ip = "127.0.0.1"
+statsd_port = 8125
+statsd_enabled = False
+statsd_flush_time = 10.0
+
+# Graphite Client
+# sends stats to a running graphite carbon server
+graphite_enabled = True
+graphite_ip = "127.0.0.1"
+graphite_port = 2003
+graphite_max_reconnects = 3
+graphite_reconnect_delay = 5
+
+
+# Mysql Client
+# mysql client used to push metrics into db. it only pushes metric
+# names and not values. this is easily changed in the code however for
+# the daring.
+mysql_enabled = True
+mysql_ip = "127.0.0.1"
+mysql_port = 3306
+mysql_db = "metrics"
+mysql_user = "USERNAME"
+mysql_pass = "PASSWORD"
+mysql_query = "INSERT IGNORE INTO TABLENAME VALUES('%s', '0', '0', '0', '0');"
+
+# Memcache Client
+# memcache send stats to memcache, appending '.v' and '.t' to key names
+# representing value and timestamp respectively
+# multipel servers can be entered in the memcache_ip list such as
+# memcache_ip = ["200.200.200.200:11211", "100.100.100.100:11211"]
+
+memcache_enabled = True
+memcache_port = 11211
+memcache_ip = ["127.0.0.1:11211"]
+
+# Bucky provides these settings to allow the system wide
+# configuration of how metric names are processed before
+# sending to Graphite.
+#
+# Prefix and postfix allow to tag all values with some value.
+name_prefix = "servers"
+name_postfix = None
+
+# The replacement character is used to munge any '.' characters
+# in name components because it is special to Graphite. Setting
+# this to None will prevent this step.
+name_replace_char = '_'
+
+# Optionally strip duplicates in path components. For instance
+# a.a.b.c.c.b would be rewritten as a.b.c.b
+name_strip_duplicates = True
+
+# Bucky reverses hostname components to improve the locality
+# of metric values in Graphite. For instance, "node.company.tld"
+# would be rewritten as "tld.company.node". This setting allows
+# for the specification of hostname components that should
+# be stripped from hostnames. For instance, if "company.tld"
+# were specified, the previous example would end up as "node".
+name_host_trim = []
+

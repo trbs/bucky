@@ -1,0 +1,99 @@
+#!/bin/bash
+#
+# chkconfig: 2345 99 20 
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+#
+# 2012, Karsten McMinn, Playfish-EA
+#
+# quick bucky init.d script
+# processname: bucky
+# config: /etc/bucky.conf
+# pidfile: /var/run/bucky.pid
+
+# Source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+ARGS=""
+prog="bucky"
+PIDFILE="/var/run/bucky.pid"
+CONFIG="/etc/bucky.conf"
+LOGFILE="/var/log/bucky.log"
+
+start () {
+	echo -n $"Starting [$prog]: "
+	if [ -r "$CONFIG" ]
+	then
+		/usr/bin/bucky "$CONFIG" >$LOGFILE 2>&1 &
+		echo "$!" > $PIDFILE
+		RETVAL=$?
+		[ $RETVAL -eq 0 ] && echo -ne '\t\t\t\t\t[  \033[32mOK\033[0m  ]\n'
+	fi
+}
+
+stop () {
+	echo -n $"Stopping [$prog]: "
+        if [ -f "$PIDFILE" ]; then
+                PID=`cat $PIDFILE`
+		kill -KILL $PID >/dev/null 2>&1
+		RETVAL=$?
+		[ $RETVAL -eq 0 ] && rm -f $PIDFILE
+	else
+		pkill -KILL $prog >/dev/null 2>&1
+		RETVAL=$?
+		[ $RETVAL -eq 0 ] && rm -f $PIDFILE
+	fi
+        
+	[ $RETVAL -eq 0 ] && echo -ne '\t\t\t\t\t[  \033[32mOK\033[0m  ]\n'
+}
+
+
+status () {
+    echo -n "Status [$prog]:"
+	if [ -f "$PIDFILE" ]; then 
+		PID=`cat $PIDFILE`
+		ps -p $PID >/dev/null 2>&1
+		RETVAL=$?
+	else
+		pgrep $prog >/dev/null 2>&1
+		RETVAL=$?
+		[ $RETVAL -eq 0 ] && echo -n " $PIDFILE missing"
+	fi
+
+	[ $RETVAL -eq 0 ] && echo -ne '\t\t\t\t\t[  \033[32mOK\033[0m  ]\n'
+
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status $prog
+	;;
+  restart|reload)
+	stop
+	start
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|reload}"
+	exit 1
+esac
+
+exit $?
+

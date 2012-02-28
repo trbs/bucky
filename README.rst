@@ -1,9 +1,9 @@
 Bucky
 -----
 
-Bucky is a small server for collecting and translating metrics for
-Graphite. It can current collect metric data from CollectD daemons
-and from StatsD clients.
+Bucky is a small server for collecting and translating metrics.
+It can current collect metric data from CollectD, StatsD and MetricsD
+and push those metrics to a client: memcache, mysql or carbon-Graphite.
 
 Installation
 ------------
@@ -17,14 +17,15 @@ operandi::
 
 After installing, you can run Bucky like::
 
-    $ bucky
+    $ bucky /etc/your_config_file.conf
 
-By default, Bucky will open a CollectD UDP socket on 127.0.0.1:25826,
-a StatsD socket on 127.0.0.1:8125 as well as attempt to connect to a
-local Graphite (Carbon) daemon on 127.0.0.1:2003.
+Bucky defines defaults in cfg.py but requires a config file. Copy
+over one of the sample config files and edit it to enable the correct
+bucky servers and clients for your installation and start bucky.
 
-These are all optional as illustrated below. You can also disable the
-CollectD or StatsD servers completely if you so desire.
+Bucky needs at least one server and one client to become useful.
+The most typical usage is using collectd as the server and graphite
+as the client, but you can run more servers and clients as well.
 
 Running Bucky For Real
 ----------------------
@@ -34,6 +35,22 @@ daemonization. This is quite on purpose. The recommended way to
 run Bucky in production is via runit. There's an example service
 directory in Bucky's source repository.
 
+Alternately there is also an example init.d script in contrib/ 
+for usage through regular init.
+
+
+Bucky Performance
+-----------------
+The bucky servers all read packets in one thread, while the clients
+you can configure to use as many threads as you want. By default
+it will try to use one thread per cpu core for bucky clients. You
+can increase the amount of threads to try to gain more performance.
+
+In testing on 2-core servers bucky was able to handle around
+1000 metrics/sec via collectd and sending via all three clients IO
+permitting. Your mileage may vary based on network and disk capabilities.
+
+
 Command Line Options
 --------------------
 
@@ -42,29 +59,43 @@ parameters. If you want to configure some of the more intricate
 workings you'll need to use a config file. Here's the `bucky -h`
 output::
 
-    Usage: main.py [OPTIONS] [CONFIG_FILE]
-    
+    Usage: bucky [CONFIG_FILE] [OPTIONS]
+
     Options:
-      --debug               Put server into debug mode. [False]
+      --debug               Put server into debug mode.
       --metricsd-ip=IP      IP address to bind for the MetricsD UDP socket
-                            [127.0.0.1]
-      --metricsd-port=INT   Port to bind for the MetricsD UDP socket [23632]
+      --metricsd-port=INT   Port to bind for the MetricsD UDP socket
       --disable-metricsd    Disable the MetricsD UDP server
       --collectd-ip=IP      IP address to bind for the CollectD UDP socket
-                            [127.0.0.1]
-      --collectd-port=INT   Port to bind for the CollectD UDP socket [25826]
+      --collectd-port=INT   Port to bind for the CollectD UDP socket
       --collectd-types=FILE
-                            Path to the collectd types.db file, can be specified
-                            multiple times
+                            Path to the collectd types.db file,
+                            can be specified multiple times
       --disable-collectd    Disable the CollectD UDP server
       --statsd-ip=IP        IP address to bind for the StatsD UDP socket
-                            [127.0.0.1]
-      --statsd-port=INT     Port to bind for the StatsD UDP socket [8125]
+      --statsd-port=INT     Port to bind for the StatsD UDP socket
       --disable-statsd      Disable the StatsD server
-      --graphite-ip=IP      IP address of the Graphite/Carbon server [127.0.0.1]
-      --graphite-port=INT   Port of the Graphite/Carbon server [2003]
-      --full-trace          Display full error if config file fails to load
-      --log-level=NAME      Logging output verbosity [INFO]
+      --graphite-ip=IP      IP address of the Graphite/Carbon server
+      --graphite-port=INT   Port of the Graphite/Carbon server
+      --disable-graphite    Disable sending stats to Graphite
+      --disable-mysql       Disable sending stats to MySQL
+      --mysql-ip=IP         IP/Hostname of the MySQL Server
+      --mysql-port=INT      Port of the MySQL server
+      --mysql-db=MYSQL_DB   Database Name of the MySQL Server
+      --mysql-user=MYSQL_USER
+                            Username for the MySQL Database
+      --mysql-password=MYSQL_PASS
+                            Password for the MySQL Database
+      --mysql-query=MYSQL_QUERY
+                            query to use for mysql client
+      --disable-memcache    Disable Sending Stats to Memcache
+      --memcache-ip=IP      IP/Hostname of the Memcache Server to send stats to
+      --memcache-port=INT   Port of the Memcache server
+      --full-trace          Display full error             if config file fails to
+                            load
+      --client-threads=CLIENT_THREADS
+                            Number of threads per client to use
+      --log-level=NAME      Logging output verbosity
       --version             show program's version number and exit
       -h, --help            show this help message and exit
 
@@ -130,7 +161,8 @@ config file::
     # How often stats should be flushed to Graphite.
     statsd_flush_time = 10.0
 
-    # Basic Graphite configuration
+    # Basic Graphite Client configuration
+    graphite_enabled = True
     graphite_ip = "127.0.0.1"
     graphite_port = 2003
     
@@ -141,6 +173,27 @@ config file::
     # to a negative number removes the limit.
     graphite_max_reconnects = 3
     graphite_reconnect_delay = 5
+
+
+    # Basic Mysql Client Configuration
+    # mysql client used to push metrics into db. it only pushes metric
+    # names and not values. this is easily changed in the code however for
+    # the daring.
+    mysql_enabled = True
+    mysql_ip = "127.0.0.1"
+    mysql_port = 3306
+    mysql_db = "metrics"
+    mysql_user = "USERNAME"
+    mysql_pass = "PASSWORD"
+    mysql_query = "INSERT IGNORE INTO TABLENAME VALUES('%s', '0', '0', '0', '0');"
+
+    # Memcache Client
+    # memcache send stats to memcache, appending '.v' and '.t' to key names
+    # representing value and timestamp respectively
+    # multipel servers can be entered in the memcache_ip list such as
+    # memcache_ip = ["200.200.200.200:11211", "100.100.100.100:11211"]
+    memcache_enabled = True
+    memcache_ip = ["127.0.0.1:11211"]
 
     # Bucky provides these settings to allow the system wide
     # configuration of how metric names are processed before
@@ -168,7 +221,7 @@ config file::
     name_host_trim = []
 
 
-Configuring CollectD
+Configuring a CollectD Server
 --------------------
 
 You should only need to add something like this to your collectd.conf::
@@ -183,17 +236,60 @@ Obviously, you'll want to match up the IP addresses and ports and make
 sure that your firewall's are configured to allow UDP packets through.
 
 
-Configuring StatsD
+Configuring a StatsD Server
 ------------------
 
 Just point your StatsD clients at Bucky's IP/Port and you should be
 good to go.
 
 
-Configuring MetricsD
+Configuring a MetricsD Server
 ------------------
 
 TODO
+
+
+Configuring a Bucky Client
+--------------------------
+
+After configuring one or more bucky servers enable a client, (graphite,
+memcache or mysql) to begin sending stats somewhere.
+
+
+Configuring a Graphite Client
+-----------------------------
+
+set "graphite_enabled = True" and configure the options
+to send to the correct ip and port of your carbon line
+port, typically tcp port 2003.
+
+
+Configuring a Memcache Client
+-----------------------------
+
+set "memcache_enabled = True" in your config and specify as
+many hosts as you want in the config along with their port,
+typically 11211:
+
+memcache_ip = ["10.202.142.175:11211", "10.40.75.126:11211"]
+
+
+Configuring a MySQL Client
+-------------------------
+
+The mysql client requires you to specify a query of your own
+based on a schema of a table of your choosing. Once setup
+the '%s' in the query will become the name of the metric in
+your query. The behind development of the mysql client 
+is to have a index of metric keys available for easy querying.
+
+Set "mysql_enabled = True" and configure the releveant options.
+Some query examples include:
+
+mysql_query = "INSERT IGNORE INTO table VALUES('%s', NOW());"
+mysql_query = "INSERT INTO table VALUES('%s', '0', '0', '0', '0') \
+		ON DUPLICATE KEY UPDATE column=value;"
+
 
 
 A note on CollectD converters
