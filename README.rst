@@ -246,7 +246,7 @@ good to go.
 Configuring a MetricsD Server
 ------------------
 
-TODO
+    TODO
 
 
 Configuring a Bucky Client
@@ -260,6 +260,7 @@ Configuring a Graphite Client
 -----------------------------
 
 Setting::
+
     graphite_enabled = True
     
 and configure the options to send to the correct ip and
@@ -271,7 +272,7 @@ Configuring a Memcache Client
 
 Setting::
 
-    "memcache_enabled = True"
+    memcache_enabled = True
 
 in your config will enable the client. You will need to
 specify memcache hosts in the config along with their port,
@@ -289,12 +290,17 @@ the '%s' in the query will become the name of the metric in
 your query. The behind development of the mysql client 
 is to have a index of metric keys available for easy querying.
 
-Set "mysql_enabled = True" and configure the releveant options.
+Setting::
+
+    mysql_enabled = True
+
+and configure the releveant options to connect to your mysql server.
+
 Some query examples include::
 
-mysql_query = "INSERT IGNORE INTO table VALUES('%s', NOW());"
-mysql_query = "INSERT INTO table VALUES('%s', '0', '0', '0', '0') \
-		ON DUPLICATE KEY UPDATE column=value;"
+    mysql_query = "INSERT IGNORE INTO table VALUES('%s', NOW());"
+    mysql_query = "INSERT INTO table VALUES('%s', '0', '0', '0', '0') \
+    		ON DUPLICATE KEY UPDATE column=value;"
 
 
 
