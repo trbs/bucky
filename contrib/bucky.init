@@ -37,8 +37,12 @@ start () {
 	then
 		/usr/bin/bucky "$CONFIG" >$LOGFILE 2>&1 &
 		echo "$!" > $PIDFILE
+		PID=`cat $PIDFILE`
+		sleep 1
+		ps -p $PID >/dev/null 2>&1
 		RETVAL=$?
 		[ $RETVAL -eq 0 ] && echo -ne '\t\t\t\t\t[  \033[32mOK\033[0m  ]\n'
+		[ $RETVAL -gt 0 ] && echo -ne '\t\t\t\t\t[  \033[1;31mFAILED\033[0m  ]\n'
 	fi
 }
 
@@ -56,6 +60,7 @@ stop () {
 	fi
         
 	[ $RETVAL -eq 0 ] && echo -ne '\t\t\t\t\t[  \033[32mOK\033[0m  ]\n'
+	[ $RETVAL -gt 0 ] && echo -ne '\t\t\t\t\t[  \033[1;31mFAILED\033[0m  ]\n'; rm -f $PIDFILE
 }
 
 
