@@ -30,7 +30,7 @@ metricsd_handlers = []
 
 # Basic collectd server configuration
 collectd_ip = "127.0.0.1"
-collectd_port = 28883
+collectd_port = 25826
 collectd_enabled = True
 collectd_types = []
 collectd_converters = {}
@@ -57,9 +57,9 @@ graphite_reconnect_delay = 5
 # mysql client used to push metrics into db. it only pushes metric
 # names and not values. this is easily changed in the code however for
 # the daring.
-mysql_enabled = True
+mysql_enabled = False
 mysql_ip = "127.0.0.1"
-mysql_port = 3306
+mysql_port = "3306"
 mysql_db = "metrics"
 mysql_user = "USERNAME"
 mysql_pass = "PASSWORD"
@@ -71,8 +71,8 @@ mysql_query = "INSERT IGNORE INTO TABLENAME VALUES('%s', '0', '0', '0', '0');"
 # multipel servers can be entered in the memcache_ip list such as
 # memcache_ip = ["200.200.200.200:11211", "100.100.100.100:11211"]
 
-memcache_enabled = True
-memcache_port = 11211
+memcache_enabled = False
+memcache_port = "11211"
 memcache_ip = ["127.0.0.1:11211"]
 
 # Bucky provides these settings to allow the system wide
