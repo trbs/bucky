@@ -32,8 +32,9 @@ class StatsDHandler(threading.Thread):
         self.setDaemon(True)
         self.queue = queue
         self.lock = threading.Lock()
-        self.counters = {}
         self.timers = {}
+        self.gauges = {}
+        self.counters = {}
         self.flush_time = flush_time
         self.key_res = (
             (re.compile("\s+"), "_"),
@@ -80,6 +81,15 @@ class StatsDHandler(threading.Thread):
 
         return ret
 
+    def enqueue_gauges(self, stime):
+        ret = 0
+        for k, v in self.gauges.iteritems():
+            stat = "stats.gauges.%s" % k
+            self.queue.put((stat, v, stime))
+            self.gauges[k] = 0
+            ret += 1
+        return ret
+
     def enqueue_counters(self, stime):
         ret = 0
         for k, v in self.counters.iteritems():
@@ -120,6 +130,8 @@ class StatsDHandler(threading.Thread):
                 continue
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
+            elif fields[1] == "g":
+                self.handle_gauge(key, fields)
             else:
                 self.handle_counter(key, fields)
 
@@ -135,6 +147,17 @@ class StatsDHandler(threading.Thread):
                 self.timers.setdefault(key, []).append(val)
         except:
             self.bad_line()
+
+    def handle_gauge(key, fields):
+        try:
+            val = int(fields[0] or 0)
+        except:
+            self.bad_line()
+            return
+        with self.lock:
+            if key not in self.gauges:
+                self.gauges[key] = 0
+            self.gauges[key] = val
 
     def handle_counter(self, key, fields):
         rate = 1.0
