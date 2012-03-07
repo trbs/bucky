@@ -33,6 +33,7 @@ class StatsDHandler(threading.Thread):
         self.queue = queue
         self.lock = threading.Lock()
         self.counters = {}
+        self.gauges = {}
         self.timers = {}
         self.flush_time = flush_time
         self.key_res = (
@@ -86,6 +87,15 @@ class StatsDHandler(threading.Thread):
             ret += 1
         return ret
 
+    def enqueue_gauges(self, stime):
+        ret = 0
+        for k, v in self.gauges.iteritems():
+            stat = "stats.%s" % k
+            self.queue.put((stat, v, stime))
+            self.gauges[k] = 0
+            ret += 1
+        return ret
+
     def handle(self, data):
         # Adding a bit of extra sauce so clients can
         # send multiple samples in a single UDP
@@ -116,6 +126,8 @@ class StatsDHandler(threading.Thread):
                 continue
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
+            else if fields[1] == "g":
+                self.handle_gauge(key, fields)
             else:
                 self.handle_counter(key, fields)
 
@@ -124,6 +136,16 @@ class StatsDHandler(threading.Thread):
             key = rexp.sub(repl, key)
         return key
 
+    def handle_gauge(key, fields):
+        try:
+            val = int(fields[0] or 0)
+        except:
+            self.bad_line()
+        with self.lock:
+            if key not in self.gauges:
+                self.gauges[key] = 0
+            self.gagues[key] = val
+    
     def handle_timer(self, key, fields):
         try:
             val = float(fields[0] or 0)
