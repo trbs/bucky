@@ -130,7 +130,7 @@ class StatsDHandler(threading.Thread):
                 continue
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
-            else if fields[1] == "g":
+            elif fields[1] == "g":
                 self.handle_gauge(key, fields)
             else:
                 self.handle_counter(key, fields)
@@ -149,7 +149,7 @@ class StatsDHandler(threading.Thread):
             if key not in self.gauges:
                 self.gauges[key] = 0
             self.gagues[key] = val
-    
+
     def handle_timer(self, key, fields):
         try:
             val = float(fields[0] or 0)
