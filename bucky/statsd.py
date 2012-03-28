@@ -33,6 +33,7 @@ class StatsDHandler(threading.Thread):
         self.queue = queue
         self.lock = threading.Lock()
         self.counters = {}
+        self.gauges = {}
         self.timers = {}
         self.flush_time = flush_time
         self.key_res = (
@@ -53,6 +54,8 @@ class StatsDHandler(threading.Thread):
     def enqueue_timers(self, stime):
         ret = 0
         for k, v in self.timers.iteritems():
+            if not v: continue
+
             v.sort()
             pct_thresh = 90
             count = len(v)
@@ -82,7 +85,18 @@ class StatsDHandler(threading.Thread):
         for k, v in self.counters.iteritems():
             stat = "stats.%s" % k
             self.queue.put((stat, v / self.flush_time, stime))
+            stat = "stats_counts.%s" % k
+            self.queue.put((stat, v, stime))
             self.counters[k] = 0
+            ret += 1
+        return ret
+
+    def enqueue_gauges(self, stime):
+        ret = 0
+        for k, v in self.gauges.iteritems():
+            stat = "stats.%s" % k
+            self.queue.put((stat, v, stime))
+            self.gauges[k] = 0
             ret += 1
         return ret
 
@@ -116,6 +130,8 @@ class StatsDHandler(threading.Thread):
                 continue
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
+            elif fields[1] == "g":
+                self.handle_gauge(key, fields)
             else:
                 self.handle_counter(key, fields)
 
@@ -123,6 +139,16 @@ class StatsDHandler(threading.Thread):
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
         return key
+
+    def handle_gauge(key, fields):
+        try:
+            val = int(fields[0] or 0)
+        except:
+            self.bad_line()
+        with self.lock:
+            if key not in self.gauges:
+                self.gauges[key] = 0
+            self.gagues[key] = val
 
     def handle_timer(self, key, fields):
         try:
