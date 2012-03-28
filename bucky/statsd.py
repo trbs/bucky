@@ -53,6 +53,8 @@ class StatsDHandler(threading.Thread):
     def enqueue_timers(self, stime):
         ret = 0
         for k, v in self.timers.iteritems():
+            if not v: continue
+
             v.sort()
             pct_thresh = 90
             count = len(v)
@@ -82,6 +84,8 @@ class StatsDHandler(threading.Thread):
         for k, v in self.counters.iteritems():
             stat = "stats.%s" % k
             self.queue.put((stat, v / self.flush_time, stime))
+            stat = "stats_counts.%s" % k
+            self.queue.put((stat, v, stime))
             self.counters[k] = 0
             ret += 1
         return ret
@@ -97,7 +101,7 @@ class StatsDHandler(threading.Thread):
             self.handle_line(line)
 
     def handle_line(self, line):
-        print line
+        log.debug("Received: '%s'" % line)
         bits = line.split(":", 1)
         key = self.handle_key(bits.pop(0))
 
@@ -109,15 +113,14 @@ class StatsDHandler(threading.Thread):
         # but the code allows for name:v1|t1:v2|t2 etc etc.
         # In the interest of compatibility, I'll maintain
         # the behavior.
-        for sample in bits:
-            fields = sample.split("|")
-            if len(fields) < 2:
-                self.bad_line()
-                continue
-            if fields[1] == "ms":
-                self.handle_timer(key, fields)
-            else:
-                self.handle_counter(key, fields)
+        sample = bits[0]
+        fields = sample.split("|")
+        if len(fields) < 2:
+            self.bad_line()
+        if fields[1] == "ms":
+            self.handle_timer(key, fields)
+        else:
+            self.handle_counter(key, fields)
 
     def handle_key(self, key):
         for (rexp, repl) in self.key_res:
