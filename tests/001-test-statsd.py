@@ -22,6 +22,7 @@ import bucky.statsd
 def test_simple_counter(q, s):
     s.send("gorm:1|c")
     t.same_stat("stats.gorm", 2, q.get())
+    t.same_stat("stats_counts.gorm", 1, q.get())
     t.same_stat("stats.numStats", 1, q.get())
 
 
@@ -31,6 +32,7 @@ def test_multiple_messages(q, s):
     s.send("gorm:1|c")
     s.send("gorm:1|c")
     t.same_stat("stats.gorm", 4, q.get())
+    t.same_stat("stats_counts.gorm", 2, q.get())
     t.same_stat("stats.numStats", 1, q.get())
 
 
@@ -39,6 +41,7 @@ def test_multiple_messages(q, s):
 def test_larger_count(q, s):
     s.send("gorm:5|c")
     t.same_stat("stats.gorm", 10, q.get())
+    t.same_stat("stats_counts.gorm", 5, q.get())
     t.same_stat("stats.numStats", 1, q.get())
 
 
@@ -47,8 +50,13 @@ def test_larger_count(q, s):
 def test_multiple_counters(q, s):
     s.send("gorm:1|c")
     s.send("gurm:1|c")
-    stats = {"stats.gorm": 2, "stats.gurm": 2}
-    for i in range(2):
+    stats = {
+        "stats.gorm": 2,
+        "stats_counts.gorm": 1,
+        "stats.gurm": 2,
+        "stats_counts.gurm": 1
+    }
+    for i in range(4):
         stat = q.get()
         t.isin(stat[0], stats)
         t.eq(stats[stat[0]], stat[1])
@@ -67,6 +75,6 @@ def test_simple_timer(q, s):
     t.same_stat("stats.timers.gorm.upper", 2, q.get())
     t.same_stat("stats.timers.gorm.upper_90", 1, q.get())
     t.same_stat("stats.timers.gorm.lower", 1, q.get())
-    t.same_stat("stats.timers.gorm.count", 9, q.get())
+    t.same_stat("stats.timers.gorm.count", 10, q.get())
     t.same_stat("stats.numStats", 1, q.get())
 
