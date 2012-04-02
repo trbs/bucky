@@ -27,6 +27,9 @@ graphite_reconnect_delay = 5
 
 full_trace = False
 
+prefix_source_name = False
+prefix_source_name_collectd = "collectd"
+
 name_prefix = None
 name_postfix = None
 name_replace_char = '_'

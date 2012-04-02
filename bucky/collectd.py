@@ -240,7 +240,7 @@ class CollectDConverter(object):
             log.exception("Exception in sample handler  %s (%s):" % (
                 sample["plugin"], handler))
             return
-        stat = statname(sample.get("host", ""), name)
+        stat = statname(sample.get("host", ""), name, "collectd")
         return stat, sample["value_type"], sample["value"], int(sample["time"])
 
     def _load_converters(self, cfg):

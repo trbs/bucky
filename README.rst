@@ -150,6 +150,16 @@ config file::
     name_prefix = None
     name_postfix = None
     
+    # prefix_source_name prefixes collectd and metricsd sources
+    # with source name ("collectd.hostname.metric"). This is useful
+    # when you want to have different retention policies for 
+    # data, depending on source.
+    prefix_source_name = False
+    # This sets special per-name source. This overrides above
+    # "prefix_source_name" option.
+    prefix_source_name_collectd = "collectd"
+    prefix_source_name_metricsd = "metricsd"
+    
     # The replacement character is used to munge any '.' characters
     # in name components because it is special to Graphite. Setting
     # this to None will prevent this step.
