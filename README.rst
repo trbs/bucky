@@ -155,10 +155,12 @@ config file::
     # when you want to have different retention policies for 
     # data, depending on source.
     prefix_source_name = False
-    # This sets special per-name source. This overrides above
-    # "prefix_source_name" option.
-    prefix_source_name_collectd = "collectd"
-    prefix_source_name_metricsd = "metricsd"
+    
+    # This sets special per-name source. These override
+    # "prefix_source_name" option - if these are set, appropriate
+    # source events are always prefixed.
+    #prefix_source_name_collectd = "collectd"
+    #prefix_source_name_metricsd = "metricsd"
     
     # The replacement character is used to munge any '.' characters
     # in name components because it is special to Graphite. Setting
