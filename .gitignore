@@ -1,3 +1,4 @@
 *.pyc
 bucky.egg-info/
 dist/
+build/
