@@ -32,13 +32,13 @@ import bucky.cfg as cfg
 import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
+import bucky.opentsdb as tsdb
 import bucky.statsd as statsd
 import bucky.bmysql as bmysql
 import bucky.bmemcache as bmemcache
 
 
 log = logging.getLogger(__name__)
-
 
 __usage__ = "%prog [CONFIG_FILE] [OPTIONS]"
 __version__ = "bucky %s" % bucky.__version__
@@ -52,6 +52,9 @@ def options():
         op.make_option("--debug", dest="debug",
             action="store_true",
             help="Put server into debug mode."
+        ),
+        op.make_option("-m", "--metrics", action="store_true", dest="metrics",
+            help="enable metric debugging to the console"
         ),
         op.make_option("--metricsd-ip", dest="metricsd_ip", metavar="IP",
             help="IP address to bind for the MetricsD UDP socket"
@@ -94,6 +97,18 @@ def options():
         ),
         op.make_option("--disable-graphite", dest="graphite_enabled",
             action="store_false", help="Disable sending stats to Graphite"
+        ),
+        op.make_option("--tsdb-ip", dest="tsdb_ip", metavar="IP",
+            help="IP address of the OpenTSDB server"
+        ),
+        op.make_option("--tsdb-port", dest="tsdb_port", metavar="INT",
+            type="int", help="Port of the OpenTSDB server"
+        ),
+        op.make_option("--disable-tsdb", dest="tsdb_enabled",
+            action="store_false", help="Disable sending stats to OpenTSDB"
+        ),
+        op.make_option("--tsdb-transform", dest="tsdb_transform",
+            help="location of the transform dictionary for tsdb"
         ),
         op.make_option("--disable-mysql", dest="mysql_enabled",
             action="store_false", help="Disable sending stats to MySQL"
@@ -140,7 +155,7 @@ def options():
 
 def main():
     """
-    parse the config, start the queues, servers, client threads
+    parses the config, start the queues, servers, client threads
     and start main daemon loop
     """
 
@@ -163,9 +178,23 @@ def main():
         parser.print_help()
         sys.exit(1)
  
+    """if cfg.tsdb_transform:
+        log.info("Loading OpenTSDB transforms at: " + str(cfg.tsdb_transform))
+        try: 
+            execfile(cfg.tsdb_transform, cfg)
+            #print tsdTransform
+        except Exception, e:
+            log.error("problem with tsdb transform config: "
+                + str(cfg.tsdb_transform) + ", error message: "
+                + str(e))
+            raise
+        else:
+            vars()
+            cfg.transform = tsdTransform
+    """
 
     try:
-        vars = load_config(cfgfile, full_trace=cfg.full_trace)
+        cvars = load_config(cfgfile, full_trace=cfg.full_trace)
     except:
         print "Error parsing config file: " + str(cfgfile)
         parser.print_help()
@@ -173,11 +202,27 @@ def main():
 
     """ merge commandline options to cfg """
     for attr, value in opts.__dict__.iteritems():
-        if attr in vars and value is not None:
+        if attr in cvars and value is not None:
             print "setting: "+str(attr)
             setattr(cfg, attr, value)
 
     configure_logging()
+
+    if len(cvars) > 0:
+        log.info("Loaded " + str(cfgfile) + " successfully")
+
+    if cfg.tsdb_transform:
+        try:
+            execfile(cfg.tsdb_transform, globals())
+        except Exeception, e:
+            log.error("problem with tsdb transform config: "
+                 + str(cfg.tsdb_transform) + ", error message: "
+                 + str(e))
+            raise
+        else:
+            log.info("Loaded OpenTSDB transforms at: " + str(cfg.tsdb_transform)
+                + " successfully")
+            cfg.transform = tsdTransform
 
     """ Queue for servers """
     sampleq = Queue.Queue(maxsize=5000)
@@ -187,6 +232,7 @@ def main():
     ccarbon = []
     cmemcache = []
     cmysql = []
+    ctsdb = []
     queues = []
     clients = []
 
@@ -224,6 +270,14 @@ def main():
             clients.append(client(queues[-1], cfg))
             clients[-1].start()
 
+    if cfg.tsdb_enabled:
+        queues.append(Queue.Queue(maxsize=2000))
+        for i in range(0, cores):
+            ctsdb.append(tsdb.TsdbClient)
+        for client in ctsdb:
+            clients.append(client(queues[-1], cfg))
+            clients[-1].start() 
+
     servers = []
     for stype in stypes:
         servers.append(stype(sampleq, cfg))
@@ -236,17 +290,21 @@ def main():
                 q.put((stat, value, time), True, 1)
         except KeyboardInterrupt:
             raise
-        except:
-            """ Queue.Full, Queue.Empty, et.al """
+        except Queue.Full, e:
+            log.debug("Client queue full, error message: " + str(e))
+        except Exception, e:
+            log.exception("Exception in main loop: " + str(e))
             continue
         else:
             continue
+
 
 
 def load_config(cfgfile, full_trace=False):
     """
     loads a configfile and evals data in it
     """
+    vars(cfg)
     cfg_mapping = vars(cfg)
     cfg_vars = []
     try:
