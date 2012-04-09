@@ -249,7 +249,7 @@ Configuring a MetricsD Server
     TODO
 
 
-Configuring a Bucky Client
+Bucky Clients
 --------------------------
 
 After configuring one or more bucky servers enable a client, (graphite,
@@ -265,6 +265,30 @@ Setting::
     
 and configure the options to send to the correct ip and
 port of your carbon line receiver port, typically tcp port 2003.
+
+
+Configuring a OpenTSDB Client
+-----------------------------
+
+Setting::
+    
+    tsdb_enaled = True
+
+Will enable sending stats to opentsdb.
+
+Host and Port::
+
+    tsdb_ip = "127.0.0.1"
+    tsdb_port = 4242
+
+This will be the host and port that you are running the tsd daemon on.
+
+Transform File::
+
+    tsdb_transform = "/etc/bucky-tsdb.py"
+
+The location of the tranform file for the stats coming from a bucky server.
+See the section below about OptnTSDB and the transform file.
 
 
 Configuring a Memcache Client
@@ -301,6 +325,26 @@ Some query examples include::
     mysql_query = "INSERT IGNORE INTO table VALUES('%s', NOW());"
     mysql_query = "INSERT INTO table VALUES('%s', '0', '0', '0', '0') \
     		ON DUPLICATE KEY UPDATE column=value;"
+
+
+
+A note on OpenTSDB transforms and metrics
+-----------------------------------------
+
+The bucky servers insert stats into the queue with a string describing the
+name of the metric. It is up to you to match these strings in the transform
+file to metric names you want to use
+
+The transform file is a python dictionary. The keys will be used to match
+on the metric name that the client gets from the servers queue::
+
+     "cpu.0.softirq" : { "name" : "cpu.softirq", "tags" : "cpu=0 command=collectd" },
+
+This example is a metric coming from collectd. Since we want to use one metric name
+for every cpu's softirq statistic gathered we change the metric to "cpu.coftirq" and
+add a tag to designate which cpu. The tag, command=collectd is used to add a general
+classification to the metric which is useful if you have multiple sources of metrics
+in your environment.
 
 
 
