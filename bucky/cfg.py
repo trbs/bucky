@@ -1,4 +1,5 @@
 debug = False
+metrics = False
 log_level = "INFO"
 full_trace = False
 
@@ -30,6 +31,11 @@ graphite_ip = "127.0.0.1"
 graphite_port = 2003
 graphite_max_reconnects = 3
 graphite_reconnect_delay = 5
+
+tsdb_enabled = True
+tsdb_ip = "127.0.0.1"
+tsdb_port = 4242
+tsdb_transform = "/etc/bucky-tsdb.py"
 
 mysql_enabled = True
 mysql_ip = "127.0.0.1"
