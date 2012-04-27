@@ -75,10 +75,10 @@ class udp_srv(object):
         return False
 
 
-def same_stat(name, value, stat):
-    eq(name, stat[0])
-    eq(value, stat[1])
-    gt(stat[2], 0)
+def same_stat(host, name, value, stat):
+    eq(name, stat[1])
+    eq(value, stat[2])
+    gt(stat[3], 0)
 
 
 def eq(a, b):
