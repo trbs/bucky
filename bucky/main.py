@@ -149,12 +149,13 @@ def main():
         servers.append(stype(sampleq, cfg))
         servers[-1].start()
 
-    cli = carbon.CarbonClient(cfg)
+    clients = [cli(cfg) for cli in cfg.custom_clients + [carbon.CarbonClient]]
 
     while True:
         try:
-            stat, value, time = sampleq.get(True, 1)
-            cli.send(stat, value, time)
+            host, name, value, time = sampleq.get(True, 1)
+            for cli in clients:
+                cli.send(host, name, value, time)
         except Queue.Empty:
             pass
         for srv in servers:

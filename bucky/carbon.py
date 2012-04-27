@@ -19,6 +19,8 @@ import socket
 import sys
 import time
 
+from bucky.names import statname
+
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +70,8 @@ class CarbonClient(object):
         except:
             pass
 
-    def send(self, stat, value, mtime):
+    def send(self, host, name, value, mtime):
+        stat = statname(host, name)
         mesg = "%s %s %s\n" % (stat, value, mtime)
         for i in xrange(self.max_reconnects):
             try:

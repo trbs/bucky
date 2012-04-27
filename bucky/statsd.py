@@ -49,7 +49,11 @@ class StatsDHandler(threading.Thread):
             with self.lock:
                 num_stats = self.enqueue_timers(stime)
                 num_stats += self.enqueue_counters(stime)
-                self.queue.put(("stats.numStats", num_stats, stime))
+                self.enqueue("stats.numStats", num_stats, stime)
+
+    def enqueue(self, name, stat, stime):
+        # No hostnames on statsd
+        self.queue.put((None, name, stat, stime))
 
     def enqueue_timers(self, stime):
         ret = 0
@@ -70,12 +74,12 @@ class StatsDHandler(threading.Thread):
                 vsum = sum(v)
                 mean = vsum / float(len(v))
 
-            self.queue.put(("stats.timers.%s.mean" % k, mean, stime))
-            self.queue.put(("stats.timers.%s.upper" % k, vmax, stime))
+            self.enqueue("stats.timers.%s.mean" % k, mean, stime)
+            self.enqueue("stats.timers.%s.upper" % k, vmax, stime)
             t = int(pct_thresh)
-            self.queue.put(("stats.timers.%s.upper_%s" % (k,t), vthresh, stime))
-            self.queue.put(("stats.timers.%s.lower" % k, vmin, stime))
-            self.queue.put(("stats.timers.%s.count" % k, count, stime))
+            self.enqueue("stats.timers.%s.upper_%s" % (k,t), vthresh, stime)
+            self.enqueue("stats.timers.%s.lower" % k, vmin, stime)
+            self.enqueue("stats.timers.%s.count" % k, count, stime)
             self.timers[k] = []
             ret += 1
 
@@ -85,7 +89,7 @@ class StatsDHandler(threading.Thread):
         ret = 0
         for k, v in self.gauges.iteritems():
             stat = "stats.gauges.%s" % k
-            self.queue.put((stat, v, stime))
+            self.enqueue(stat, v, stime)
             self.gauges[k] = 0
             ret += 1
         return ret
@@ -94,9 +98,9 @@ class StatsDHandler(threading.Thread):
         ret = 0
         for k, v in self.counters.iteritems():
             stat = "stats.%s" % k
-            self.queue.put((stat, v / self.flush_time, stime))
+            self.enqueue(stat, v / self.flush_time, stime)
             stat = "stats_counts.%s" % k
-            self.queue.put((stat, v, stime))
+            self.enqueue(stat, v, stime)
             self.counters[k] = 0
             ret += 1
         return ret

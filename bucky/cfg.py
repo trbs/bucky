@@ -32,3 +32,5 @@ name_postfix = None
 name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
+
+custom_clients = []
