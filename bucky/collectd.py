@@ -18,7 +18,6 @@ import os
 import struct
 
 from bucky.errors import ConfigError, ProtocolError
-from bucky.names import statname
 from bucky.udpserver import UDPServer
 
 log = logging.getLogger(__name__)
@@ -233,15 +232,21 @@ class CollectDConverter(object):
         default = self.converters["_default"]
         handler = self.converters.get(sample["plugin"], default)
         try:
-            name = handler(sample)
+            name = '.'.join(handler(sample))
             if name is None:
                 return # treat None as "ignore sample"
         except:
             log.exception("Exception in sample handler  %s (%s):" % (
                 sample["plugin"], handler))
             return
-        stat = statname(sample.get("host", ""), name)
-        return stat, sample["value_type"], sample["value"], int(sample["time"])
+        host = sample.get("host", "")
+        return (
+            host,
+            name,
+            sample["value_type"],
+            sample["value"],
+            int(sample["time"])
+        )
 
     def _load_converters(self, cfg):
         cfg_conv = cfg.collectd_converters
@@ -287,12 +292,12 @@ class CollectDServer(UDPServer):
                 sample = self.converter.convert(sample)
                 if sample is None:
                     continue
-                name, vtype, val, time = sample
+                host, name, vtype, val, time = sample
                 if not name.strip():
                     continue
                 val = self.calculate(name, vtype, val, time)
                 if val is not None:
-                    self.queue.put((name, val, time))
+                    self.queue.put((host, name, val, time))
         except ProtocolError, e:
             log.error("Protocol error: %s" % e)
             if self.last_sample is not None:
