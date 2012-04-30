@@ -304,7 +304,7 @@ class CollectDServer(UDPServer):
                 log.info("Last sample: %s" % self.last_sample)
         return True
 
-    def calculate(self, name, vtype, val, time):
+    def calculate(self, host, name, vtype, val, time):
         handlers = {
             0: self._calc_counter,  # counter
             1: lambda _host, _name, v, _time: v,         # gauge
