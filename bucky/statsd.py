@@ -49,6 +49,7 @@ class StatsDHandler(threading.Thread):
             with self.lock:
                 num_stats = self.enqueue_timers(stime)
                 num_stats += self.enqueue_counters(stime)
+                num_stats += self.enqueue_gauges(stime)
                 self.enqueue("stats.numStats", num_stats, stime)
 
     def enqueue(self, name, stat, stime):
@@ -152,7 +153,7 @@ class StatsDHandler(threading.Thread):
         except:
             self.bad_line()
 
-    def handle_gauge(key, fields):
+    def handle_gauge(self, key, fields):
         try:
             val = int(fields[0] or 0)
         except:

@@ -78,3 +78,10 @@ def test_simple_timer(q, s):
     t.same_stat(None, "stats.timers.gorm.count", 10, q.get())
     t.same_stat(None, "stats.numStats", 1, q.get())
 
+
+@t.set_cfg("statsd_flush_time", 0.5)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_simple_gauge(q, s):
+    s.send("gorm:5|g")
+    t.same_stat(None, "stats.gauges.gorm", 5, q.get())
+    t.same_stat(None, "stats.numStats", 1, q.get())
