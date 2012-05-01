@@ -328,7 +328,7 @@ class CollectDServer(UDPServer):
         pval, ptime = self.prev_samples[key]
         self.prev_samples[key] = (val, time)
         if val < pval or time <= ptime:
-            log.error("Invalid COUNTER update for: %s" % key)
+            log.error("Invalid COUNTER update for: %s:%s" % key)
             log.info("Last sample: %s" % self.last_sample)
             return
         return float(val - pval) / (time - ptime)
@@ -342,7 +342,7 @@ class CollectDServer(UDPServer):
         pval, ptime = self.prev_samples[key]
         self.prev_samples[key] = (val, time)
         if time <= ptime:
-            log.debug("Invalid DERIVE update for: %s" % key)
+            log.debug("Invalid DERIVE update for: %s:%s" % key)
             log.debug("Last sample: %s" % self.last_sample)
             return
         return float(val - pval) / (time - ptime)
@@ -355,7 +355,7 @@ class CollectDServer(UDPServer):
         _pval, ptime = self.prev_samples[key]
         self.prev_samples[key] = (val, time)
         if time <= ptime:
-            log.error("Invalid ABSOLUTE update for: %s" % key)
+            log.error("Invalid ABSOLUTE update for: %s:%s" % key)
             log.info("Last sample: %s" % self.last_sample)
             return
         return float(val) / (time - ptime)
