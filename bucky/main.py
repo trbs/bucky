@@ -15,6 +15,7 @@
 # Copyright 2011 Cloudant, Inc.
 
 import logging
+import multiprocessing
 import optparse as op
 import os
 import Queue
@@ -134,7 +135,7 @@ def main():
 
     handler.setLevel(cfg.log_level)
 
-    sampleq = Queue.Queue()
+    sampleq = multiprocessing.Queue()
 
     stypes = []
     if cfg.metricsd_enabled:
@@ -149,19 +150,27 @@ def main():
         servers.append(stype(sampleq, cfg))
         servers[-1].start()
 
-    clients = [cli(cfg) for cli in cfg.custom_clients + [carbon.CarbonClient]]
+    clients = []
+    for client in cfg.custom_clients + [carbon.CarbonClient]:
+        send, recv = multiprocessing.Pipe()
+        instance = client(cfg, recv)
+        instance.start()
+        clients.append((instance, send))
 
     while True:
         try:
-            host, name, value, time = sampleq.get(True, 1)
-            for cli in clients:
-                cli.send(host, name, value, time)
+            sample = sampleq.get(True, 1)
+            for instance, pipe in clients:
+                if not instance.is_alive():
+                    log.error("Client process died. Exiting.")
+                    sys.exit(1)
+                pipe.send(sample)
         except Queue.Empty:
             pass
         for srv in servers:
             if not srv.is_alive():
                 log.error("Server thread died. Exiting.")
-                break
+                sys.exit(1)
 
 
 def load_config(cfgfile, full_trace=False):

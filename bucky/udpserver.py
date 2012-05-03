@@ -15,7 +15,7 @@
 import logging
 import socket
 import sys
-import threading
+import multiprocessing
 
 import bucky.cfg as cfg
 
@@ -23,10 +23,10 @@ import bucky.cfg as cfg
 log = logging.getLogger(__name__)
 
 
-class UDPServer(threading.Thread):
+class UDPServer(multiprocessing.Process):
     def __init__(self, ip, port):
         super(UDPServer, self).__init__()
-        self.setDaemon(True)
+        self.daemon = True
         self.ip = ip
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

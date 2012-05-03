@@ -16,7 +16,7 @@ import logging
 import Queue
 import re
 import struct
-import threading
+import multiprocessing
 import time
 
 from bucky.errors import ConfigError, ProtocolError
@@ -120,13 +120,13 @@ class MetricsDParser(object):
         return val, data[1+sz:]
 
 
-class MetricsDHandler(threading.Thread):
+class MetricsDHandler(multiprocessing.Process):
     def __init__(self, outbox, interval):
         super(MetricsDHandler, self).__init__()
-        self.setDaemon(True)
+        self.daemon = True
         self.interval = interval
         self.outbox = outbox
-        self.inbox = Queue.Queue()
+        self.inbox = multiprocessing.Queue()
         self.next_update = time.time() + self.interval
         self.metrics = {}
 
