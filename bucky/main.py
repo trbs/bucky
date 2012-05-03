@@ -29,7 +29,13 @@ import bucky.statsd as statsd
 
 
 log = logging.getLogger(__name__)
-
+levels = {
+    'CRITICAL' : logging.CRITICAL,
+    'ERROR'    : logging.ERROR,
+    'WARNING'  : logging.WARNING,
+    'INFO'     : logging.INFO,
+    'DEBUG'    : logging.DEBUG,
+}
 
 __usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
 __version__ = "bucky %s" % bucky.__version__
@@ -126,13 +132,14 @@ def main():
     load_config(cfgfile, full_trace=opts.full_trace)
 
     if cfg.debug:
-        cfg.log_level = "DEBUG"
+        cfg.log_level = logging.DEBUG
 
     # Mandatory second commandline
     # processing pass to override values in cfg
     parser.parse_args(values=cfg)
 
-    handler.setLevel(cfg.log_level)
+    lvl = levels.get(cfg.log_level, handler.level)
+    handler.setLevel(lvl)
 
     sampleq = Queue.Queue()
 
