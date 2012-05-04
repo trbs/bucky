@@ -19,6 +19,7 @@ import socket
 import sys
 import time
 
+import bucky.client as client
 from bucky.names import statname
 
 
@@ -29,9 +30,9 @@ class DebugSocket(object):
     def sendall(self, data):
         sys.stdout.write(data)
 
-
-class CarbonClient(object):
-    def __init__(self, cfg):
+class CarbonClient(client.Client):
+    def __init__(self, cfg, pipe):
+        super(CarbonClient, self).__init__(pipe)
         self.debug = cfg.debug
         self.ip = cfg.graphite_ip
         self.port = cfg.graphite_port

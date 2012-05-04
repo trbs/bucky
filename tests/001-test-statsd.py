@@ -18,6 +18,7 @@ import t
 import bucky.statsd
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8126)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_counter(q, s):
     s.send("gorm:1|c")
@@ -27,6 +28,7 @@ def test_simple_counter(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8127)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_multiple_messages(q, s):
     s.send("gorm:1|c")
@@ -37,6 +39,7 @@ def test_multiple_messages(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8128)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_larger_count(q, s):
     s.send("gorm:5|c")
@@ -46,6 +49,7 @@ def test_larger_count(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8129)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_multiple_counters(q, s):
     s.send("gorm:1|c")
@@ -66,6 +70,7 @@ def test_multiple_counters(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8130)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_timer(q, s):
     for i in range(9):
