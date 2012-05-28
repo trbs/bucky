@@ -138,7 +138,7 @@ def main():
     # processing pass to override values in cfg
     parser.parse_args(values=cfg)
 
-    lvl = levels.get(cfg.log_level, handler.level)
+    lvl = levels.get(cfg.log_level, cfg.log_level)
     handler.setLevel(lvl)
 
     sampleq = Queue.Queue()
