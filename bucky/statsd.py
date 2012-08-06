@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 class StatsDHandler(threading.Thread):
     def __init__(self, queue, flush_time=10):
         super(StatsDHandler, self).__init__()
-        self.setDaemon(True)
+        self.daemon = True
         self.queue = queue
         self.lock = threading.Lock()
         self.timers = {}
@@ -189,7 +189,10 @@ class StatsDServer(udpserver.UDPServer):
     def __init__(self, queue, cfg):
         super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
         self.handler = StatsDHandler(queue, flush_time=cfg.statsd_flush_time)
+
+    def run(self):
         self.handler.start()
+        super(StatsDServer, self).run()
 
     def handle(self, data, addr):
         self.handler.handle(data)

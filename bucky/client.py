@@ -12,7 +12,19 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 #
-# Copyright 2011 Cloudant, Inc.
+# Copyright 2012 Cloudant, Inc.
 
-version_info = (0, 2, 0)
-__version__ = ".".join(map(str, version_info))
+import multiprocessing
+
+class Client(multiprocessing.Process):
+    def __init__(self, pipe):
+        super(Client, self).__init__()
+        self.daemon = True
+        self.pipe = pipe
+
+    def run(self):
+        while True:
+            self.send(*self.pipe.recv())
+
+    def send(self, host, name, value, time):
+        raise NotImplemented()

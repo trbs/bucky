@@ -15,6 +15,7 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
+import Queue
 import struct
 
 import t
@@ -41,4 +42,7 @@ def test_simple_counter(q, s):
     s = q.get()
     while s:
         print s
-        s = q.get(False)
+        try:
+            s = q.get(False)
+        except Queue.Empty:
+            break
