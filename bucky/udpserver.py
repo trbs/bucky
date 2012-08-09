@@ -42,9 +42,8 @@ class UDPServer(multiprocessing.Process):
         while True:
             data, addr = self.sock.recvfrom(65535)
             log.debug("Received UDP packet from %s:%s" % addr)
-            if cfg.debug is True:
-                if data == 'EXIT':
-                    return
+            if data == 'EXIT':
+                return
             if not self.handle(data, addr):
                 return
 

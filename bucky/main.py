@@ -19,6 +19,7 @@ import multiprocessing
 import optparse as op
 import os
 import Queue
+import signal
 import sys
 
 import bucky
@@ -157,9 +158,18 @@ def main():
         instance.start()
         clients.append((instance, send))
 
+    def shutdown(signum, frame):
+        for server in servers:
+            server.close()
+            sampleq.put(None)
+
+    signal.signal(signal.SIGTERM, shutdown)
+
     while True:
         try:
             sample = sampleq.get(True, 1)
+            if not sample:
+                break
             for instance, pipe in clients:
                 if not instance.is_alive():
                     log.error("Client process died. Exiting.")
@@ -171,6 +181,11 @@ def main():
             if not srv.is_alive():
                 log.error("Server thread died. Exiting.")
                 sys.exit(1)
+
+    for child in multiprocessing.active_children():
+        child.terminate()
+        child.join()
+    sys.exit()
 
 
 def load_config(cfgfile, full_trace=False):
