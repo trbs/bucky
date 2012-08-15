@@ -24,6 +24,8 @@ graphite_ip = "127.0.0.1"
 graphite_port = 2003
 graphite_max_reconnects = 3
 graphite_reconnect_delay = 5
+graphite_pickle_enabled = False
+graphite_pickle_buffer_size = 500
 
 full_trace = False
 

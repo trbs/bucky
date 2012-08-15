@@ -16,8 +16,13 @@
 
 import logging
 import socket
+import struct
 import sys
 import time
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 import bucky.client as client
 from bucky.names import statname
@@ -72,11 +77,41 @@ class CarbonClient(client.Client):
             pass
 
     def send(self, host, name, value, mtime):
+        raise NotImplemented
+
+class PlaintextClient(CarbonClient):
+    def send(self, host, name, value, mtime):
         stat = statname(host, name)
         mesg = "%s %s %s\n" % (stat, value, mtime)
         for i in xrange(self.max_reconnects):
             try:
                 self.sock.sendall(mesg)
+                return
+            except socket.error, err:
+                if i+1 >= self.max_reconnects:
+                    raise
+                log.error("Failed to send data to Carbon server: %s" % err)
+                self.reconnect()
+
+class PickleClient(CarbonClient):
+    def __init__(self, cfg, pipe):
+        super(PickleClient, self).__init__(cfg, pipe)
+        self.buffer_size = cfg.graphite_pickle_buffer_size
+        self.buffer = []
+
+    def send(self, host, name, value, mtime):
+        stat = statname(host, name)
+        self.buffer.append((stat, (mtime, value)))
+        if len(self.buffer) >= self.buffer_size:
+            self.transmit()
+
+    def transmit(self):
+        payload = pickle.dumps(self.buffer, protocol=-1)
+        header = struct.pack("!L", len(payload))
+        self.buffer = []
+        for i in xrange(self.max_reconnects):
+            try:
+                self.sock.sendall(header + payload)
                 return
             except socket.error, err:
                 if i+1 >= self.max_reconnects:

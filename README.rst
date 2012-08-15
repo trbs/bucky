@@ -142,6 +142,12 @@ config file::
     graphite_max_reconnects = 3
     graphite_reconnect_delay = 5
 
+    # Configuration for sending metrics to Graphite via the pickle
+    # interface. Be sure to edit graphite_port to match the settings
+    # on your Graphite cache/relay.
+    graphite_pickle_enabled = False
+    graphite_pickle_buffer_size = 500
+
     # Bucky provides these settings to allow the system wide
     # configuration of how metric names are processed before
     # sending to Graphite.

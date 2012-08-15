@@ -151,8 +151,13 @@ def main():
         servers.append(stype(sampleq, cfg))
         servers[-1].start()
 
+    if cfg.graphite_pickle_enabled:
+        carbon_client = carbon.PickleClient
+    else:
+        carbon_client = carbon.PlaintextClient
+
     clients = []
-    for client in cfg.custom_clients + [carbon.CarbonClient]:
+    for client in cfg.custom_clients + [carbon_client]:
         send, recv = multiprocessing.Pipe()
         instance = client(cfg, recv)
         instance.start()
