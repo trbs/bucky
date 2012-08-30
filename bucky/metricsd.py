@@ -19,13 +19,14 @@ import struct
 import multiprocessing
 import time
 
+import bucky.names as names
+
 from bucky.errors import ConfigError, ProtocolError
 from bucky.metrics.counter import Counter
 from bucky.metrics.gauge import Gauge
 from bucky.metrics.histogram import Histogram
 from bucky.metrics.meter import Meter
 from bucky.metrics.timer import Timer
-from bucky.names import statname
 from bucky.udpserver import UDPServer
 
 
@@ -93,7 +94,7 @@ class MetricsDParser(object):
             value, data = self.parse_number(data)
         else:
             value = None
-        stat = statname(hostname, name.split("."))
+        stat = names.statname(hostname, name.split("."))
         cmd = MetricsDCommand(stat, mtype, action, value)
         return cmd, data
 

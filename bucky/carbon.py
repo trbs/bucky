@@ -25,7 +25,7 @@ except ImportError:
     import pickle
 
 import bucky.client as client
-from bucky.names import statname
+import bucky.names as names
 
 
 log = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class CarbonClient(client.Client):
 
 class PlaintextClient(CarbonClient):
     def send(self, host, name, value, mtime):
-        stat = statname(host, name)
+        stat = names.statname(host, name)
         mesg = "%s %s %s\n" % (stat, value, mtime)
         for i in xrange(self.max_reconnects):
             try:
@@ -100,7 +100,7 @@ class PickleClient(CarbonClient):
         self.buffer = []
 
     def send(self, host, name, value, mtime):
-        stat = statname(host, name)
+        stat = names.statname(host, name)
         self.buffer.append((stat, (mtime, value)))
         if len(self.buffer) >= self.buffer_size:
             self.transmit()
