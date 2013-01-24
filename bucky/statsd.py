@@ -155,7 +155,7 @@ class StatsDHandler(threading.Thread):
 
     def handle_gauge(self, key, fields):
         try:
-            val = int(fields[0] or 0)
+            val = float(fields[0] or 0)
         except:
             self.bad_line()
             return
