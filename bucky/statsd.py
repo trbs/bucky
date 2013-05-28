@@ -42,7 +42,7 @@ class StatsDHandler(threading.Thread):
         self.gauges = {}
         self.counters = {}
         self.flush_time = cfg.statsd_flush_time
-        self.legacy_names = cfg.statsd_legacy_names
+        self.legacy_namespace = cfg.statsd_legacy_namespace
         self.global_prefix = cfg.statsd_global_prefix
         self.prefix_counter = cfg.statsd_prefix_counter
         self.prefix_timer = cfg.statsd_prefix_timer
@@ -116,7 +116,7 @@ class StatsDHandler(threading.Thread):
     def enqueue_counters(self, stime):
         ret = 0
         for k, v in self.counters.iteritems():
-            if self.legacy_names:
+            if self.legacy_namespace:
                 stat_rate = "%s%s" % (self.name_legacy_rate, k)
                 stat_count = "%s%s" % (self.name_legacy_count, k)
             else:
