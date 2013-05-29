@@ -91,7 +91,6 @@ class StatsDHandler(threading.Thread):
         for k, v in self.gauges.iteritems():
             stat = "stats.gauges.%s" % k
             self.enqueue(stat, v, stime)
-            self.gauges[k] = 0
             ret += 1
         return ret
 
