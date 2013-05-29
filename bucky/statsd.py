@@ -53,13 +53,17 @@ class StatsDHandler(threading.Thread):
             (re.compile("[^a-zA-Z_\-0-9\.]"), "")
         )
 
-        self.name_global = make_name([self.global_prefix])
-        self.name_counter = make_name([self.global_prefix, self.prefix_counter])
-        self.name_timer = make_name([self.global_prefix, self.prefix_timer])
-        self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
-        # Legacy names.
-        self.name_legacy_rate = self.name_global
-        self.name_legacy_count = make_name([self.global_prefix + "_counts"])
+        if self.legacy_namespace:
+            self.name_global = 'stats.'
+            self.name_legacy_rate = 'stats.'
+            self.name_legacy_count = 'stats_counts.'
+            self.name_timer = 'stats.timers.'
+            self.name_gauge = 'stats.gauges.'
+        else:
+            self.name_global = make_name([self.global_prefix])
+            self.name_counter = make_name([self.global_prefix, self.prefix_counter])
+            self.name_timer = make_name([self.global_prefix, self.prefix_timer])
+            self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
 
     def run(self):
         while True:
