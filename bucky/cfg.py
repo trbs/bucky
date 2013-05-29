@@ -19,6 +19,11 @@ statsd_ip = "127.0.0.1"
 statsd_port = 8125
 statsd_enabled = True
 statsd_flush_time = 10.0
+statsd_legacy_namespace = True
+statsd_global_prefix = "stats"
+statsd_prefix_counter = "counters"
+statsd_prefix_timer = "timers"
+statsd_prefix_gauge = "gauges"
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
@@ -30,7 +35,9 @@ graphite_pickle_buffer_size = 500
 full_trace = False
 
 name_prefix = None
+name_prefix_parts = None
 name_postfix = None
+name_postfix_parts = None
 name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []

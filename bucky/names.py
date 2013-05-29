@@ -61,9 +61,13 @@ def statname(host, name):
     parts = []
     if cfg.name_prefix:
         parts.append(cfg.name_prefix)
+    if cfg.name_prefix_parts:
+        parts.extend(cfg.name_prefix_parts)
     if host:
         parts.extend(hostname(host))
     parts.extend(nameparts)
+    if cfg.name_postfix_parts:
+        parts.append(cfg.name_postfix_parts)
     if cfg.name_postfix:
         parts.append(cfg.name_postfix)
     if cfg.name_replace_char is not None:
