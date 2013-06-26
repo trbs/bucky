@@ -160,10 +160,7 @@ class StatsDHandler(threading.Thread):
         except:
             self.bad_line()
             return
-        if valstr[:1] == "+" or valstr[:1] == "-":
-            delta = True
-        else:
-            delta = False
+        delta = valstr[0] in ["+", "-"]
         with self.lock:
             if key not in self.gauges:
                 self.gauges[key] = 0
