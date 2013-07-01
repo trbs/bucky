@@ -153,15 +153,20 @@ class StatsDHandler(threading.Thread):
             self.bad_line()
 
     def handle_gauge(self, key, fields):
+        valstr = fields[0] or "0"
         try:
-            val = float(fields[0] or 0)
+            val = float(valstr)
         except:
             self.bad_line()
             return
+        delta = valstr[0] in ["+", "-"]
         with self.lock:
             if key not in self.gauges:
                 self.gauges[key] = 0
-            self.gauges[key] = val
+            if delta:
+                self.gauges[key] = self.gauges[key] + val
+            else:
+                self.gauges[key] = val
 
     def handle_counter(self, key, fields):
         rate = 1.0
