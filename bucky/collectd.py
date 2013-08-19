@@ -243,9 +243,10 @@ class CollectDConverter(object):
         default = self.converters["_default"]
         handler = self.converters.get(sample["plugin"], default)
         try:
-            name = '.'.join(handler(sample))
-            if name is None:
+            name_parts = handler(sample)
+            if name_parts is None:
                 return  # treat None as "ignore sample"
+            name = '.'.join(name_parts)
         except:
             log.exception("Exception in sample handler  %s (%s):", sample["plugin"], handler)
             return
