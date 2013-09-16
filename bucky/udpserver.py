@@ -45,7 +45,7 @@ class UDPServer(multiprocessing.Process):
             sys.exit(1)
 
         self.sock_recvfrom = self.sock.recvfrom
-        if cfg.DEBUG:
+        if cfg.debug:
             # When in debug mode replace the send and recvfrom functions to include
             # debug logging. In production mode these calls have quite a lot of overhead
             # for statements that will never do anything.
