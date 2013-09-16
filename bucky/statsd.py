@@ -186,7 +186,7 @@ class StatsDHandler(threading.Thread):
             self.counters[key] += val
 
     def bad_line(self):
-        log.error("StatsD: Invalid line: '%s'" % self.line.strip())
+        log.error("StatsD: Invalid line: '%s'", self.line.strip())
 
 
 class StatsDServer(udpserver.UDPServer):

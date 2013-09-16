@@ -19,6 +19,12 @@ import multiprocessing
 
 import bucky.cfg as cfg
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
+
 
 log = logging.getLogger(__name__)
 
@@ -33,15 +39,36 @@ class UDPServer(multiprocessing.Process):
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             self.sock.bind((ip, port))
-            log.info("Bound socket socket %s:%s" % (ip, port))
+            log.info("Bound socket socket %s:%s", ip, port)
         except Exception:
-            log.exception("Error binding socket %s:%s." % (ip, port))
+            log.exception("Error binding socket %s:%s.", ip, port)
             sys.exit(1)
 
+        self.sock_recvfrom = self.sock.recvfrom
+        if cfg.debug:
+            # When in debug mode replace the send and recvfrom functions to include
+            # debug logging. In production mode these calls have quite a lot of overhead
+            # for statements that will never do anything.
+            import functools
+            def debugsend(f):
+                @functools.wraps(f)
+                def wrapper(*args, **kwargs):
+                    log.debug("Sending UDP packet to %s:%s", self.ip, self.port)
+                    return f(*args, **kwargs)
+                return wrapper
+            self.send = debugsend(self.send)
+
+            def debugrecvfrom(*args, **kwargs):
+                data, addr = self.sock.recvfrom(65535)
+                log.debug("Received UDP packet from %s:%s" % addr)
+                return data, addr
+            self.sock_recvfrom = debugrecvfrom
+
     def run(self):
+        setproctitle("bucky: %s" % self.__class__.__name__)
+        recvfrom = self.sock_recvfrom
         while True:
-            data, addr = self.sock.recvfrom(65535)
-            log.debug("Received UDP packet from %s:%s" % addr)
+            data, addr = recvfrom(65535)
             if data == 'EXIT':
                 return
             if not self.handle(data, addr):
@@ -54,8 +81,5 @@ class UDPServer(multiprocessing.Process):
         self.send('EXIT')
 
     def send(self, data):
-        log.debug("Sending UDP packet to %s:%s" % (self.ip, self.port))
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.sendto(data, (self.ip, self.port))
-
-
