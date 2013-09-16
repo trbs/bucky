@@ -16,6 +16,13 @@
 
 import multiprocessing
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
+
+
 class Client(multiprocessing.Process):
     def __init__(self, pipe):
         super(Client, self).__init__()
@@ -23,6 +30,7 @@ class Client(multiprocessing.Process):
         self.pipe = pipe
 
     def run(self):
+        setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             self.send(*self.pipe.recv())
 

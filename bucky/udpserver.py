@@ -19,6 +19,12 @@ import multiprocessing
 
 import bucky.cfg as cfg
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
+
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +45,7 @@ class UDPServer(multiprocessing.Process):
             sys.exit(1)
 
     def run(self):
+        setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             data, addr = self.sock.recvfrom(65535)
             log.debug("Received UDP packet from %s:%s" % addr)
