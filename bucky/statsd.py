@@ -69,7 +69,7 @@ class StatsDHandler(threading.Thread):
             mean, vthresh = vmin, vmax
 
             if count > 1:
-                thresh_idx = int(math.floor(float(pct_thresh) / 100.0 * count))
+                thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
                 v = v[:thresh_idx]
                 vthresh = v[-1]
                 vsum = sum(v)
@@ -176,7 +176,7 @@ class StatsDHandler(threading.Thread):
             except:
                 rate = 1.0
         try:
-            val = int(float(fields[0] or 0) / rate)
+            val = int((fields[0] or 0) / rate)
         except:
             self.bad_line()
             return
