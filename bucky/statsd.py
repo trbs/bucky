@@ -173,7 +173,7 @@ class StatsDHandler(threading.Thread):
             except:
                 rate = 1.0
         try:
-            val = int((fields[0] or 0) / rate)
+            val = int(float(fields[0] or 0) / rate)
         except:
             self.bad_line()
             return
