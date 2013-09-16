@@ -56,13 +56,12 @@ class CarbonClient(client.Client):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 self.sock.connect((self.ip, self.port))
-                log.info("Connected to Carbon at %s:%s" % (self.ip, self.port))
+                log.info("Connected to Carbon at %s:%s", self.ip, self.port)
                 return
             except socket.error, e:
                 if i+1 >= self.max_reconnects:
                     raise
-                args = (self.ip, self.port, e)
-                log.error("Failed to connect to %s:%s: %s" % args)
+                log.error("Failed to connect to %s:%s: %s", self.ip, self.port, e)
                 if self.reconnect_delay > 0:
                     time.sleep(self.reconnect_delay)
 
@@ -90,7 +89,7 @@ class PlaintextClient(CarbonClient):
             except socket.error, err:
                 if i+1 >= self.max_reconnects:
                     raise
-                log.error("Failed to send data to Carbon server: %s" % err)
+                log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()
 
 class PickleClient(CarbonClient):
@@ -116,5 +115,5 @@ class PickleClient(CarbonClient):
             except socket.error, err:
                 if i+1 >= self.max_reconnects:
                     raise
-                log.error("Failed to send data to Carbon server: %s" % err)
+                log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()

@@ -199,11 +199,11 @@ def load_config(cfgfile, full_trace=False):
         if cfgfile is not None:
             execfile(cfgfile, cfg_mapping)
     except Exception, e:
-        log.error("Failed to read config file: %s" % cfgfile)
+        log.error("Failed to read config file: %s", cfgfile)
         if full_trace:
-            log.exception("Reason: %s" % e)
+            log.exception("Reason: %s", e)
         else:
-            log.error("Reason: %s" % e)
+            log.error("Reason: %s", e)
         sys.exit(1)
     for name in dir(cfg):
         if name.startswith("_"):
