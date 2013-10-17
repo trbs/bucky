@@ -14,10 +14,13 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import logging
 import multiprocessing
+
+import logging
 import optparse as op
 import os
+import pwd
+import grp
 import Queue
 import signal
 import sys
@@ -98,7 +101,53 @@ def options():
             metavar="NAME", default="INFO",
             help="Logging output verbosity [%default]"
         ),
+        op.make_option("--nice", dest="nice",
+            type="int", default=cfg.nice,
+            help="Change default process priority"
+        ),
+        op.make_option("--uid", dest="uid",
+            type="str", default=cfg.uid,
+            help="Drop privileges to this user"
+        ),
+        op.make_option("--gid", dest="gid",
+            type="str", default=cfg.gid,
+            help="Drop privileges to this group"
+        ),
     ]
+
+
+def set_nice_level(priority):
+    os.nice(priority)
+
+
+def drop_privileges(user, group):
+    if user is None:
+        uid = os.getuid()
+    elif user.lstrip("-").isdigit():
+        uid = int(user)
+    else:
+        uid = pwd.getpwnam(user).pw_uid
+
+    if group is None:
+        gid = os.getgid()
+    elif group.lstrip("-").isdigit():
+        gid = int(group)
+    else:
+        gid = grp.getgrnam(group).gr_gid
+
+    username = pwd.getpwuid(uid).pw_name
+    groupname = grp.getgrgid(gid).gr_name
+    groups = [g for g in grp.getgrall() if username in g.gr_mem]
+
+    os.setgroups(groups)
+    if hasattr(os, 'setresgid'):
+        os.setresgid(gid, gid, gid)
+    else:
+        os.setregid(gid, gid)
+    if hasattr(os, 'setresuid'):
+        os.setresuid(uid, uid, uid)
+    else:
+        os.setreuid(uid, uid)
 
 
 def main():
@@ -135,6 +184,12 @@ def main():
     parser.parse_args(values=cfg)
 
     handler.setLevel(cfg.log_level)
+
+    if cfg.nice:
+        set_nice_level(cfg.nice)
+
+    if cfg.uid or cfg.gid:
+        drop_privileges(cfg.uid, cfg.gid)
 
     sampleq = multiprocessing.Queue()
 
