@@ -158,9 +158,7 @@ class StatsDHandler(threading.Thread):
             return
         delta = valstr[0] in ["+", "-"]
         with self.lock:
-            if key not in self.gauges:
-                self.gauges[key] = 0
-            if delta:
+            if delta and key in self.gauges:
                 self.gauges[key] = self.gauges[key] + val
             else:
                 self.gauges[key] = val
