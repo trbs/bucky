@@ -125,10 +125,10 @@ class StatsDHandler(threading.Thread):
         # In the interest of compatibility, I'll maintain
         # the behavior.
         for sample in bits:
-            fields = sample.split("|")
-            if len(fields) < 2:
+            if not "|" in sample:
                 self.bad_line()
                 continue
+            fields = sample.split("|")
             if fields[1] == "ms":
                 self.handle_timer(key, fields)
             elif fields[1] == "g":
