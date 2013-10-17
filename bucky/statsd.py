@@ -113,10 +113,10 @@ class StatsDHandler(threading.Thread):
             self.handle_line(line)
 
     def handle_line(self, line):
-        bits = line.split(":", 1)
+        bits = line.split(":")
         key = self.handle_key(bits.pop(0))
 
-        if len(bits) == 0:
+        if not bits:
             self.bad_line()
             return
 
