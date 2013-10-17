@@ -21,6 +21,8 @@ from setuptools import setup
 
 from bucky import __version__
 
+install_requires = [e.strip() for e in open("requirements.txt") if not e.startswith("#")]
+
 setup(
     name = 'bucky',
     version = __version__,
@@ -35,7 +37,8 @@ setup(
     author = 'Paul J. Davis',
     author_email = 'paul@cloudant.com',
     license = 'ASF2.0',
-    url = 'http://github.com/cloudant/bucky.git',
+    url = 'http://github.com/trbs/bucky.git',
+    install_requires = install_requires,
 
     classifiers = [
         'Development Status :: 4 - Beta',
