@@ -1,5 +1,6 @@
 *.pyc
 *.pyo
 *.egg
-bucky.egg-info/
+bucky2.egg-info/
+build/
 dist/
