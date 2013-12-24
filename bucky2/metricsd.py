@@ -102,11 +102,11 @@ class MetricsDParser(object):
         (length,) = struct.unpack("!H", data[:2])
         if length > len(data) - 2:
             raise ProtocolError("Truncated string value")
-        if data[2+length] != 0x00:
+        if data[2 + length] != 0x00:
             raise ProtocolError("String missing null-byte terminator")
         try:
-            ret = data[2:2+length-1].decode("utf-8")
-            return ret, data[2+length+1:]
+            ret = data[2:2 + length - 1].decode("utf-8")
+            return ret, data[2 + length + 1:]
         except UnicodeDecodeError:
             raise ProtocolError("String is not value UTF-8")
 
@@ -117,8 +117,8 @@ class MetricsDParser(object):
         sz = struct.calcsize(fmt)
         if sz > len(data) - 1:
             raise ProtocolError("Truncated numeric value")
-        (val,) = struct.unpack(data[1:1+sz])
-        return val, data[1+sz:]
+        (val, ) = struct.unpack(data[1:1 + sz])
+        return val, data[1 + sz:]
 
 
 class MetricsDHandler(multiprocessing.Process):
@@ -136,7 +136,7 @@ class MetricsDHandler(multiprocessing.Process):
 
     def update_metric(self, mc):
         if mc.action is MetricsDCommand.DELETE:
-            metrics.pop(mc.name, None)
+            self.metrics.pop(mc.name, None)
             return
         metric = self.metrics.get(mc.name)
         if mc.action is MetricsDCommand.CLEAR:
