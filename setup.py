@@ -15,32 +15,29 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
-import sys
-
 from setuptools import setup
-
 from bucky2 import __version__
 
 install_requires = [e.strip() for e in open("requirements.txt") if not e.startswith("#")]
 
 setup(
-    name = 'bucky2',
-    version = __version__,
+    name='bucky2',
+    version=__version__,
 
-    description = 'CollectD and StatsD adapter for Graphite',
-    long_description = file(
+    description='StatsD and CollectD adapter for Graphite',
+    long_description=file(
         os.path.join(
             os.path.dirname(__file__),
             'README.rst'
         )
     ).read(),
-    author = 'Paul J. Davis',
-    author_email = 'paul@cloudant.com',
-    license = 'ASF2.0',
-    url = 'http://github.com/trbs/bucky2.git',
-    install_requires = install_requires,
+    author='Trbs',
+    author_email='trbs@trbs.net',
+    license='ASF2.0',
+    url='http://github.com/trbs/bucky2.git',
+    install_requires=install_requires,
 
-    classifiers = [
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Other Environment',
         'Intended Audience :: Developers',
@@ -53,9 +50,9 @@ setup(
         'Topic :: Utilities',
         'Topic :: System :: Networking :: Monitoring'
     ],
-    zip_safe = False,
-    packages = ['bucky2', 'bucky2.metrics', 'bucky2.metrics.stats'],
-    include_package_data = True,
+    zip_safe=False,
+    packages=['bucky2', 'bucky2.metrics', 'bucky2.metrics.stats'],
+    include_package_data=True,
 
     entry_points="""\
     [console_scripts]

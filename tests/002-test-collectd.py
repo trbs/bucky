@@ -21,6 +21,7 @@ import struct
 import t
 import bucky2.collectd
 
+
 def pkts():
     fname = os.path.join(os.path.dirname(__file__), "collectd.pkts")
     with open(fname) as handle:

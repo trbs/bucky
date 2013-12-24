@@ -14,7 +14,6 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import Queue
 import time
 import multiprocessing
 
@@ -74,29 +73,38 @@ def same_stat(host, name, value, stat):
 def eq(a, b):
     assert a == b, "%r != %r" % (a, b)
 
+
 def ne(a, b):
     assert a != b, "%r == %r" % (a, b)
+
 
 def lt(a, b):
     assert a < b, "%r >= %r" % (a, b)
 
+
 def gt(a, b):
     assert a > b, "%r <= %r" % (a, b)
+
 
 def isin(a, b):
     assert a in b, "%r is not in %r" % (a, b)
 
+
 def isnotin(a, b):
     assert a not in b, "%r is in %r" % (a, b)
+
 
 def has(a, b):
     assert hasattr(a, b), "%r has no attribute %r" % (a, b)
 
+
 def hasnot(a, b):
     assert not hasattr(a, b), "%r has an attribute %r" % (a, b)
 
+
 def istype(a, b):
     assert isinstance(a, b), "%r is not an instance of %r" % (a, b)
+
 
 def raises(exctype, func, *args, **kwargs):
     try:
@@ -104,6 +112,5 @@ def raises(exctype, func, *args, **kwargs):
     except exctype:
         return
     func_name = getattr(func, "func_name", "<builtin_function>")
-    raise AssertionError("Function %s did not raise %s" % (
-            func_name, exctype.__name__))
+    raise AssertionError("Function %s did not raise %s" % (func_name, exctype.__name__))
 
