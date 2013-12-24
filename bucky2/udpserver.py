@@ -50,6 +50,7 @@ class UDPServer(multiprocessing.Process):
             # debug logging. In production mode these calls have quite a lot of overhead
             # for statements that will never do anything.
             import functools
+
             def debugsend(f):
                 @functools.wraps(f)
                 def wrapper(*args, **kwargs):

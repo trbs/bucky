@@ -35,6 +35,7 @@ class DebugSocket(object):
     def sendall(self, data):
         sys.stdout.write(data)
 
+
 class CarbonClient(client.Client):
     def __init__(self, cfg, pipe):
         super(CarbonClient, self).__init__(pipe)
@@ -59,7 +60,7 @@ class CarbonClient(client.Client):
                 log.info("Connected to Carbon at %s:%s", self.ip, self.port)
                 return
             except socket.error, e:
-                if i+1 >= self.max_reconnects:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to connect to %s:%s: %s", self.ip, self.port, e)
                 if self.reconnect_delay > 0:
@@ -78,6 +79,7 @@ class CarbonClient(client.Client):
     def send(self, host, name, value, mtime):
         raise NotImplemented
 
+
 class PlaintextClient(CarbonClient):
     def send(self, host, name, value, mtime):
         stat = names.statname(host, name)
@@ -87,10 +89,11 @@ class PlaintextClient(CarbonClient):
                 self.sock.sendall(mesg)
                 return
             except socket.error, err:
-                if i+1 >= self.max_reconnects:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()
+
 
 class PickleClient(CarbonClient):
     def __init__(self, cfg, pipe):
@@ -113,7 +116,7 @@ class PickleClient(CarbonClient):
                 self.sock.sendall(header + payload)
                 return
             except socket.error, err:
-                if i+1 >= self.max_reconnects:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()

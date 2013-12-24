@@ -19,16 +19,17 @@ import math
 import random
 import time
 
+
 class ExpDecSample(object):
-    """\
+    """
     An exponentially-decaying random sample of longs. Based
     on the implementation in Coda Hale's metrics library:
-    
+
       https://github.com/codahale/metrics/blob/development/metrics-core/src/main/java/com/yammer/metrics/stats/ExponentiallyDecayingSample.java
     """
-    
+
     RESCALE_THRESHOLD = 60 * 60 * 1000000000
-    
+
     def __init__(self, reservoir_size, alpha):
         self.rsize = reservoir_size
         self.alpha = alpha
@@ -36,15 +37,15 @@ class ExpDecSample(object):
         self.count = 0
         self.start_time = self.tick()
         self.next_rescale = self.start_time + self.RESCALE_THRESHOLD
-    
+
     def clear(self):
         self.count = 0
         self.start_time = self.tick()
         self.next_rescale = self.start_time + self.RESCALE_THRESHOLD
-    
+
     def size(self):
         return int(min(self.rsize, self.count))
-    
+
     def update(self, val, when=None):
         if when is None:
             when = self.tick()

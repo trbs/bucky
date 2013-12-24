@@ -78,7 +78,7 @@ class StatsDHandler(threading.Thread):
             self.enqueue("stats.timers.%s.mean" % k, mean, stime)
             self.enqueue("stats.timers.%s.upper" % k, vmax, stime)
             t = int(pct_thresh)
-            self.enqueue("stats.timers.%s.upper_%s" % (k,t), vthresh, stime)
+            self.enqueue("stats.timers.%s.upper_%s" % (k, t), vthresh, stime)
             self.enqueue("stats.timers.%s.lower" % k, vmin, stime)
             self.enqueue("stats.timers.%s.count" % k, count, stime)
             self.timers[k] = []

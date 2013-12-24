@@ -80,7 +80,7 @@ class Histogram(Metric):
         newm = oldm + ((value - oldm) / self.count)
         news = olds + ((value - oldm) * (value - newm))
         self.variance = (newm, news)
-    
+
     def _percentiles(self):
         values = self.sample.values()
         values.sort()
@@ -92,7 +92,7 @@ class Histogram(Metric):
             elif pos >= len(values):
                 ret.append((d, values[-1]))
             else:
-                lower, upper = values[int(pos-1)], values[int(pos)]
+                lower, upper = values[int(pos - 1)], values[int(pos)]
                 percentile = lower + ((pos - math.floor(pos)) * (upper - lower))
                 ret.append((d, percentile))
         return ret

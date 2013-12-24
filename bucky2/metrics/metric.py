@@ -23,12 +23,13 @@ class MetricValue(object):
         self.value = value
         self.time = now or time.time()
 
+
 class Metric(object):
     def update(self, value):
         raise NotImplemented()
-    
+
     def clear(self, value):
         raise NotImplemented()
-    
+
     def metrics(slef):
         raise NotImplemented()

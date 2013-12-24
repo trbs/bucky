@@ -39,77 +39,96 @@ log = logging.getLogger(__name__)
 __usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
 __version__ = "bucky2 %s" % bucky2.__version__
 
+
 def options():
     return [
-        op.make_option("--debug", dest="debug", default=False,
+        op.make_option(
+            "--debug", dest="debug", default=False,
             action="store_true",
             help="Put server into debug mode. [%default]"
         ),
-        op.make_option("--metricsd-ip", dest="metricsd_ip", metavar="IP",
+        op.make_option(
+            "--metricsd-ip", dest="metricsd_ip", metavar="IP",
             default=cfg.metricsd_ip,
             help="IP address to bind for the MetricsD UDP socket [%default]"
         ),
-        op.make_option("--metricsd-port", dest="metricsd_port", metavar="INT",
+        op.make_option(
+            "--metricsd-port", dest="metricsd_port", metavar="INT",
             type="int", default=cfg.metricsd_port,
             help="Port to bind for the MetricsD UDP socket [%default]"
         ),
-        op.make_option("--disable-metricsd", dest="metricsd_enabled",
+        op.make_option(
+            "--disable-metricsd", dest="metricsd_enabled",
             default=cfg.metricsd_enabled, action="store_false",
             help="Disable the MetricsD UDP server"
         ),
-        op.make_option("--collectd-ip", dest="collectd_ip", metavar="IP",
+        op.make_option(
+            "--collectd-ip", dest="collectd_ip", metavar="IP",
             default=cfg.collectd_ip,
             help="IP address to bind for the CollectD UDP socket [%default]"
         ),
-        op.make_option("--collectd-port", dest="collectd_port", metavar="INT",
+        op.make_option(
+            "--collectd-port", dest="collectd_port", metavar="INT",
             type='int', default=cfg.collectd_port,
             help="Port to bind for the CollectD UDP socket [%default]"
         ),
-        op.make_option("--collectd-types", dest="collectd_types",
+        op.make_option(
+            "--collectd-types", dest="collectd_types",
             metavar="FILE", action='append', default=cfg.collectd_types,
             help="Path to the collectd types.db file, can be specified multiple times"
         ),
-        op.make_option("--disable-collectd", dest="collectd_enabled",
+        op.make_option(
+            "--disable-collectd", dest="collectd_enabled",
             default=cfg.collectd_enabled, action="store_false",
             help="Disable the CollectD UDP server"
         ),
-        op.make_option("--statsd-ip", dest="statsd_ip", metavar="IP",
+        op.make_option(
+            "--statsd-ip", dest="statsd_ip", metavar="IP",
             default=cfg.statsd_ip,
             help="IP address to bind for the StatsD UDP socket [%default]"
         ),
-        op.make_option("--statsd-port", dest="statsd_port", metavar="INT",
+        op.make_option(
+            "--statsd-port", dest="statsd_port", metavar="INT",
             type="int", default=cfg.statsd_port,
             help="Port to bind for the StatsD UDP socket [%default]"
         ),
-        op.make_option("--disable-statsd", dest="statsd_enabled",
+        op.make_option(
+            "--disable-statsd", dest="statsd_enabled",
             default=cfg.statsd_enabled, action="store_false",
             help="Disable the StatsD server"
         ),
-        op.make_option("--graphite-ip", dest="graphite_ip", metavar="IP",
+        op.make_option(
+            "--graphite-ip", dest="graphite_ip", metavar="IP",
             default=cfg.graphite_ip,
             help="IP address of the Graphite/Carbon server [%default]"
         ),
-        op.make_option("--graphite-port", dest="graphite_port", metavar="INT",
+        op.make_option(
+            "--graphite-port", dest="graphite_port", metavar="INT",
             type="int", default=cfg.graphite_port,
             help="Port of the Graphite/Carbon server [%default]"
         ),
-        op.make_option("--full-trace", dest="full_trace",
+        op.make_option(
+            "--full-trace", dest="full_trace",
             default=cfg.full_trace, action="store_true",
             help="Display full error if config file fails to load"
         ),
-        op.make_option("--log-level", dest="log_level",
+        op.make_option(
+            "--log-level", dest="log_level",
             metavar="NAME", default="INFO",
             help="Logging output verbosity [%default]"
         ),
-        op.make_option("--nice", dest="nice",
+        op.make_option(
+            "--nice", dest="nice",
             type="int", default=cfg.nice,
             help="Change default process priority"
         ),
-        op.make_option("--uid", dest="uid",
+        op.make_option(
+            "--uid", dest="uid",
             type="str", default=cfg.uid,
             help="Drop privileges to this user"
         ),
-        op.make_option("--gid", dest="gid",
+        op.make_option(
+            "--gid", dest="gid",
             type="str", default=cfg.gid,
             help="Drop privileges to this group"
         ),
@@ -136,7 +155,7 @@ def drop_privileges(user, group):
         gid = grp.getgrnam(group).gr_gid
 
     username = pwd.getpwuid(uid).pw_name
-    groupname = grp.getgrgid(gid).gr_name
+    #groupname = grp.getgrgid(gid).gr_name
     groups = [g for g in grp.getgrall() if username in g.gr_mem]
 
     os.setgroups(groups)
@@ -163,7 +182,7 @@ def main():
     logfmt = "[%(levelname)s] %(module)s - %(message)s"
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(logfmt))
-    handler.setLevel(logging.ERROR) # Overridden by configuration
+    handler.setLevel(logging.ERROR)  # Overridden by configuration
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
 
