@@ -1,0 +1,16 @@
+language: python
+
+python:
+  - 2.6
+  - 2.7
+  - 3.3
+
+install:
+  - pip install -r requirements.txt --use-mirrors
+  - pip install flake8 --use-mirrors
+  - pip install nose --use-mirrors
+  - pip install -e . --use-mirrors
+
+script:
+  - flake8 --ignore=E501,W391 .
+  - nosetests -v
