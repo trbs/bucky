@@ -14,7 +14,7 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-from bucky.metrics.metric import Metric, MetricValue as MV
+from bucky2.metrics.metric import Metric, MetricValue as MV
 
 class Counter(Metric):
     def __init__(self, name):

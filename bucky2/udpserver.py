@@ -17,7 +17,7 @@ import socket
 import sys
 import multiprocessing
 
-import bucky.cfg as cfg
+import bucky2.cfg as cfg
 
 try:
     from setproctitle import setproctitle
@@ -65,7 +65,7 @@ class UDPServer(multiprocessing.Process):
             self.sock_recvfrom = debugrecvfrom
 
     def run(self):
-        setproctitle("bucky: %s" % self.__class__.__name__)
+        setproctitle("bucky2: %s" % self.__class__.__name__)
         recvfrom = self.sock_recvfrom
         while True:
             data, addr = recvfrom(65535)

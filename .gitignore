@@ -1,3 +1,5 @@
 *.pyc
+*.pyo
+*.egg
 bucky.egg-info/
 dist/

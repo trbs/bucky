@@ -16,9 +16,9 @@
 
 import math
 
-from bucky.metrics.metric import Metric, MetricValue as MV
-from bucky.metrics.stats.expdec_sample import ExpDecSample
-from bucky.metrics.stats.usample import UniformSample
+from bucky2.metrics.metric import Metric, MetricValue as MV
+from bucky2.metrics.stats.expdec_sample import ExpDecSample
+from bucky2.metrics.stats.usample import UniformSample
 
 
 class Histogram(Metric):

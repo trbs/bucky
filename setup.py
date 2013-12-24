@@ -19,12 +19,12 @@ import sys
 
 from setuptools import setup
 
-from bucky import __version__
+from bucky2 import __version__
 
 install_requires = [e.strip() for e in open("requirements.txt") if not e.startswith("#")]
 
 setup(
-    name = 'bucky',
+    name = 'bucky2',
     version = __version__,
 
     description = 'CollectD and StatsD adapter for Graphite',
@@ -37,7 +37,7 @@ setup(
     author = 'Paul J. Davis',
     author_email = 'paul@cloudant.com',
     license = 'ASF2.0',
-    url = 'http://github.com/trbs/bucky.git',
+    url = 'http://github.com/trbs/bucky2.git',
     install_requires = install_requires,
 
     classifiers = [
@@ -54,11 +54,11 @@ setup(
         'Topic :: System :: Networking :: Monitoring'
     ],
     zip_safe = False,
-    packages = ['bucky', 'bucky.metrics', 'bucky.metrics.stats'],
+    packages = ['bucky2', 'bucky2.metrics', 'bucky2.metrics.stats'],
     include_package_data = True,
 
     entry_points="""\
     [console_scripts]
-    bucky=bucky.main:main
+    bucky2=bucky2.main:main
     """
 )

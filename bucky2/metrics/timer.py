@@ -12,27 +12,25 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 #
-# Copyright 2012 Cloudant, Inc.
+# Copyright 2011 Cloudant, Inc.
 
-import multiprocessing
-
-try:
-    from setproctitle import setproctitle
-except ImportError:
-    def setproctitle(title):
-        pass
+from bucky2.metrics.histogram import Histogram
+from bucky2.metrics.meter import Meter
+from bucky2.metrics.metric import Metric
 
 
-class Client(multiprocessing.Process):
-    def __init__(self, pipe):
-        super(Client, self).__init__()
-        self.daemon = True
-        self.pipe = pipe
+class Timer(Metric):
+    def __init__(self, name):
+        self.name = name
+        self.meter = Meter("%s.calls" % name)
+        self.histogram = Histogram("%s.histo" % name)
 
-    def run(self):
-        setproctitle("bucky: %s" % self.__class__.__name__)
-        while True:
-            self.send(*self.pipe.recv())
+    def clear(self):
+        self.histogram.clear()
 
-    def send(self, host, name, value, time):
-        raise NotImplemented()
+    def update(self, value):
+        self.meter.mark()
+        self.histogram.update(value)
+
+    def metrics(self):
+        return self.meter.metrics() + self.histogram.metrics()

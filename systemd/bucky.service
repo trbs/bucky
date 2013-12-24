@@ -1,11 +1,11 @@
 [Unit]
-Description=bucky metrics collector/aggregator
+Description=bucky2 metrics collector/aggregator
 After=graphite_carbon_cache.service collectd.service
 
 [Service]
 User=nobody
 Group=nogroup
-ExecStart=/usr/bin/bucky
+ExecStart=/usr/bin/bucky2
 
 [Install]
 WantedBy=multi-user.target

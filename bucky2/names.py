@@ -14,7 +14,7 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import bucky.cfg as cfg
+import bucky2.cfg as cfg
 
 
 __host_trim__ = None

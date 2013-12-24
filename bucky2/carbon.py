@@ -24,8 +24,8 @@ try:
 except ImportError:
     import pickle
 
-import bucky.client as client
-import bucky.names as names
+import bucky2.client as client
+import bucky2.names as names
 
 
 log = logging.getLogger(__name__)

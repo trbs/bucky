@@ -20,7 +20,7 @@ import re
 import threading
 import time
 
-import bucky.udpserver as udpserver
+import bucky2.udpserver as udpserver
 
 
 log = logging.getLogger(__name__)

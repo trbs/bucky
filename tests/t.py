@@ -18,7 +18,7 @@ import Queue
 import time
 import multiprocessing
 
-import bucky.cfg as cfg
+import bucky2.cfg as cfg
 cfg.debug = True
 
 

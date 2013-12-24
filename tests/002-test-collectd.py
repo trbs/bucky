@@ -19,7 +19,7 @@ import Queue
 import struct
 
 import t
-import bucky.collectd
+import bucky2.collectd
 
 def pkts():
     fname = os.path.join(os.path.dirname(__file__), "collectd.pkts")
@@ -36,7 +36,7 @@ def test_pkt_reader():
         t.ne(len(pkt), 0)
 
 
-@t.udp_srv(bucky.collectd.CollectDServer)
+@t.udp_srv(bucky2.collectd.CollectDServer)
 def test_simple_counter(q, s):
     s.send(pkts().next())
     s = q.get()

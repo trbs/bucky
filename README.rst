@@ -1,7 +1,7 @@
-Bucky
------
+Bucky2
+------
 
-Bucky is a small server for collecting and translating metrics for
+Bucky2 is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
 and from StatsD clients.
 
@@ -11,15 +11,15 @@ Installation
 You can install with `easy_install` or `pip` as per normal modus
 operandi::
 
-    $ easy_install bucky
+    $ easy_install bucky2
     # or
-    $ pip install bucky
+    $ pip install bucky2
 
-After installing, you can run Bucky like::
+After installing, you can run Bucky2 like::
 
-    $ bucky
+    $ bucky2
 
-By default, Bucky will open a CollectD UDP socket on 127.0.0.1:25826,
+By default, Bucky2 will open a CollectD UDP socket on 127.0.0.1:25826,
 a StatsD socket on 127.0.0.1:8125 as well as attempt to connect to a
 local Graphite (Carbon) daemon on 127.0.0.1:2003.
 
@@ -29,8 +29,8 @@ CollectD or StatsD servers completely if you so desire.
 Process Names
 -------------
 
-If the py-setproctitle_ module is installed Bucky will use it to set
-user readable process names. This will make the child processes of Bucky
+If the py-setproctitle_ module is installed Bucky2 will use it to set
+user readable process names. This will make the child processes of Bucky2
 easier to identify. Please note that this is completely optional.
 
 To install py-setproctitle_ run::
@@ -42,20 +42,20 @@ To install py-setproctitle_ run::
 .. _py-setproctitle: https://github.com/dvarrazzo/py-setproctitle
 
 
-Running Bucky For Real
-----------------------
+Running Bucky2 For Real
+-----------------------
 
-The astute observer will notice that Bucky has no flags for
+The astute observer will notice that Bucky2 has no flags for
 daemonization. This is quite on purpose. The recommended way to
-run Bucky in production is via runit. There's an example service
-directory in Bucky's source repository.
+run Bucky2 in production is via runit. There's an example service
+directory in Bucky2's source repository.
 
 Command Line Options
 --------------------
 
 The command line options are limited to controlling the network
 parameters. If you want to configure some of the more intricate
-workings you'll need to use a config file. Here's the `bucky -h`
+workings you'll need to use a config file. Here's the `bucky2 -h`
 output::
 
     Usage: main.py [OPTIONS] [CONFIG_FILE]
@@ -135,7 +135,7 @@ config file::
     collectd_converters = {}
     
     # Whether to load converters from entry points. The entry point
-    # used to define converters is 'bucky.collectd.converters'.
+    # used to define converters is 'bucky2.collectd.converters'.
     collectd_use_entry_points = True
 
     # Basic statsd configuration
@@ -164,7 +164,7 @@ config file::
     graphite_pickle_enabled = False
     graphite_pickle_buffer_size = 500
 
-    # Bucky provides these settings to allow the system wide
+    # Bucky2 provides these settings to allow the system wide
     # configuration of how metric names are processed before
     # sending to Graphite.
     #    
@@ -181,7 +181,7 @@ config file::
     # a.a.b.c.c.b would be rewritten as a.b.c.b
     name_strip_duplicates = True
     
-    # Bucky reverses hostname components to improve the locality
+    # Bucky2 reverses hostname components to improve the locality
     # of metric values in Graphite. For instance, "node.company.tld"
     # would be rewritten as "tld.company.node". This setting allows
     # for the specification of hostname components that should
@@ -208,7 +208,7 @@ sure that your firewall's are configured to allow UDP packets through.
 Configuring StatsD
 ------------------
 
-Just point your StatsD clients at Bucky's IP/Port and you should be
+Just point your StatsD clients at Bucky2's IP/Port and you should be
 good to go.
 
 
@@ -225,7 +225,7 @@ CollectD metrics aren't exactly directly translatable to Graphite
 metric names. The default translator attempts to make a best guess
 but this can result in slightly less than pretty Graphite trees.
 
-For this reason, Bucky has configurable converters. These are
+For this reason, Bucky2 has configurable converters. These are
 keyed off the CollectD plugin name. The input to these functions is
 a representation of the CollectD metric that looks like such::
 
@@ -262,7 +262,7 @@ An example builtin converter looks like such::
 
 Converters can either be declared and/or imported in the optional
 config file, or they can be autodiscovered via entry points. The
-entry point that is searched is "bucky.collectd.converters". The
+entry point that is searched is "bucky2.collectd.converters". The
 entry point name should be the CollectD plugin name.
 
 `collectd_converters` in config file should be a mapping of collectd

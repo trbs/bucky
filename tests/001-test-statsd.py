@@ -15,11 +15,11 @@
 # Copyright 2011 Cloudant, Inc.
 
 import t
-import bucky.statsd
+import bucky2.statsd
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8126)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_simple_counter(q, s):
     s.send("gorm:1|c")
     t.same_stat(None, "stats.gorm", 2, q.get())
@@ -29,7 +29,7 @@ def test_simple_counter(q, s):
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8127)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_multiple_messages(q, s):
     s.send("gorm:1|c")
     s.send("gorm:1|c")
@@ -40,7 +40,7 @@ def test_multiple_messages(q, s):
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8128)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_larger_count(q, s):
     s.send("gorm:5|c")
     t.same_stat(None, "stats.gorm", 10, q.get())
@@ -50,7 +50,7 @@ def test_larger_count(q, s):
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8129)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_multiple_counters(q, s):
     s.send("gorm:1|c")
     s.send("gurm:1|c")
@@ -71,7 +71,7 @@ def test_multiple_counters(q, s):
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8130)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_simple_timer(q, s):
     for i in range(9):
         s.send("gorm:1|ms")
@@ -85,7 +85,7 @@ def test_simple_timer(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
-@t.udp_srv(bucky.statsd.StatsDServer)
+@t.udp_srv(bucky2.statsd.StatsDServer)
 def test_simple_gauge(q, s):
     s.send("gorm:5|g")
     t.same_stat(None, "stats.gauges.gorm", 5, q.get())

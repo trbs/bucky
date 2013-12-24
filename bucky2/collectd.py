@@ -17,8 +17,8 @@ import logging
 import os
 import struct
 
-from bucky.errors import ConfigError, ProtocolError
-from bucky.udpserver import UDPServer
+from bucky2.errors import ConfigError, ProtocolError
+from bucky2.udpserver import UDPServer
 
 log = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ class CollectDConverter(object):
         if not cfg.collectd_use_entry_points:
             return
         import pkg_resources
-        group = 'bucky.collectd.converters'
+        group = 'bucky2.collectd.converters'
         for ep in pkg_resources.iter_entry_points(group):
             name, klass = ep.name, ep.load()
             self._add_converter(name, klass, source=ep.module_name)

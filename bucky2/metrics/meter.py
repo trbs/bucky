@@ -16,8 +16,8 @@
 
 import time
 
-from bucky.metrics.metric import Metric, MetricValue as MV
-from bucky.metrics.stats.ewma import EWMA
+from bucky2.metrics.metric import Metric, MetricValue as MV
+from bucky2.metrics.stats.ewma import EWMA
 
 class Meter(Metric):
     def __init__(self, name):

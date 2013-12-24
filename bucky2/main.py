@@ -25,19 +25,19 @@ import Queue
 import signal
 import sys
 
-import bucky
-import bucky.cfg as cfg
-import bucky.carbon as carbon
-import bucky.collectd as collectd
-import bucky.metricsd as metricsd
-import bucky.statsd as statsd
+import bucky2
+import bucky2.cfg as cfg
+import bucky2.carbon as carbon
+import bucky2.collectd as collectd
+import bucky2.metricsd as metricsd
+import bucky2.statsd as statsd
 
 
 log = logging.getLogger(__name__)
 
 
 __usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
-__version__ = "bucky %s" % bucky.__version__
+__version__ = "bucky2 %s" % bucky2.__version__
 
 def options():
     return [
