@@ -42,7 +42,7 @@ def test_simple_counter(q, s):
     s.send(pkts().next())
     s = q.get()
     while s:
-        print s
+        print(s)
         try:
             s = q.get(False)
         except Queue.Empty:
