@@ -1,6 +1,7 @@
 *.pyc
 *.pyo
 *.egg
+.coverage
 bucky2.egg-info/
 build/
 dist/

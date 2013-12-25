@@ -6,6 +6,9 @@ Bucky2
 .. image:: https://travis-ci.org/trbs/bucky2.png?branch=master
    :target: https://travis-ci.org/trbs/bucky2
 
+.. image:: https://coveralls.io/repos/trbs/bucky2/badge.png
+   :target: https://coveralls.io/r/trbs/bucky2 
+
 Bucky2 is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
 and from StatsD clients.
