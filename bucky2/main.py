@@ -16,13 +16,14 @@
 
 import multiprocessing
 
-import logging
-import optparse as op
 import os
+import six
+import sys
 import pwd
 import grp
 import signal
-import sys
+import logging
+import optparse as op
 
 try:
     import queue
@@ -275,7 +276,11 @@ def load_config(cfgfile, full_trace=False):
     cfg_mapping = vars(cfg)
     try:
         if cfgfile is not None:
-            execfile(cfgfile, cfg_mapping)
+            if six.PY3:
+                with open(cfgfile, 'rb') as file:
+                    exec(compile(file.read(), cfgfile, 'exec'), cfg_mapping)
+            else:
+                execfile(cfgfile, cfg_mapping)  # noqa
     except Exception as e:
         log.error("Failed to read config file: %s", cfgfile)
         if full_trace:

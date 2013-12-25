@@ -1,4 +1,11 @@
+import six
 import math
+
+
+if six.PY3:
+    ZERO_LONG = 0
+else:
+    ZERO_LONG = long(0)  # noqa
 
 
 class EWMA(object):
@@ -29,7 +36,7 @@ class EWMA(object):
         self.alpha = alpha
         self.interval = interval
         self.curr_rate = None
-        self.uncounted = 0L
+        self.uncounted = ZERO_LONG
 
     def update(self, val):
         self.uncounted += val
@@ -39,7 +46,7 @@ class EWMA(object):
 
     def tick(self):
         count = self.uncounted
-        self.uncounted = 0L
+        self.uncounted = ZERO_LONG
         instant_rate = count / self.interval
         if self.initialized:
             self.curr_rate += (self.alpha * (instant_rate - self.curr_rate))

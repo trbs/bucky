@@ -14,10 +14,11 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import heapq
+import six
 import math
-import random
 import time
+import random
+import heapq
 
 
 class ExpDecSample(object):
@@ -71,8 +72,12 @@ class ExpDecSample(object):
             newvals.append((k * factor, v))
         self.values = newvals
 
-    def tick(self):
-        return long(time.time() * 1000000000.0)
+    if six.PY3:
+        def tick(self):
+            return time.time() * 1000000000.0
+    else:
+        def tick(self):
+            return long(time.time() * 1000000000.0)  # noqa
 
     def weight(self, t):
         return math.exp(self.alpha * t)

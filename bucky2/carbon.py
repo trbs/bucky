@@ -14,11 +14,12 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import logging
-import socket
-import struct
+import six
 import sys
 import time
+import socket
+import struct
+import logging
 try:
     import cPickle as pickle
 except ImportError:
@@ -26,6 +27,10 @@ except ImportError:
 
 import bucky2.client as client
 import bucky2.names as names
+
+
+if six.PY3:
+    xrange = range
 
 
 log = logging.getLogger(__name__)

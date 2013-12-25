@@ -14,6 +14,8 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+# flake8: noqa
+
 import time
 import multiprocessing
 from functools import wraps
@@ -112,6 +114,6 @@ def raises(exctype, func, *args, **kwargs):
         func(*args, **kwargs)
     except exctype:
         return
-    func_name = getattr(func, "func_name", "<builtin_function>")
+    func_name = getattr(func, "__name__", "<builtin_function>")
     raise AssertionError("Function %s did not raise %s" % (func_name, exctype.__name__))
 
