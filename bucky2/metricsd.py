@@ -12,12 +12,17 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-import logging
-import Queue
 import re
+import six
 import struct
-import multiprocessing
 import time
+import logging
+import multiprocessing
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 import bucky2.names as names
 
@@ -158,13 +163,19 @@ class MetricsDHandler(multiprocessing.Process):
             try:
                 mv = self.inbox.get(True, to_sleep)
                 self.update_metric(mv)
-            except Queue.Empty:
+            except queue.Empty:
                 continue
 
-    def flush_updates(self):
-        for _, metric in self.metrics.iteritems():
-            for v in metric.metrics():
-                self.outbox.put((v.name, v.value, v.time))
+    if six.PY3:
+        def flush_updates(self):
+            for _, metric in self.metrics.items():
+                for v in metric.metrics():
+                    self.outbox.put((v.name, v.value, v.time))
+    else:
+        def flush_updates(self):
+            for _, metric in self.metrics.iteritems():
+                for v in metric.metrics():
+                    self.outbox.put((v.name, v.value, v.time))
 
 
 class MetricsDServer(UDPServer):

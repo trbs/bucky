@@ -21,9 +21,13 @@ import optparse as op
 import os
 import pwd
 import grp
-import Queue
 import signal
 import sys
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 import bucky2
 import bucky2.cfg as cfg
@@ -254,7 +258,7 @@ def main():
                     log.error("Client process died. Exiting.")
                     sys.exit(1)
                 pipe.send(sample)
-        except Queue.Empty:
+        except queue.Empty:
             pass
         for srv in servers:
             if not srv.is_alive():
@@ -272,7 +276,7 @@ def load_config(cfgfile, full_trace=False):
     try:
         if cfgfile is not None:
             execfile(cfgfile, cfg_mapping)
-    except Exception, e:
+    except Exception as e:
         log.error("Failed to read config file: %s", cfgfile)
         if full_trace:
             log.exception("Reason: %s", e)
@@ -291,5 +295,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
-    except Exception, e:
+    except Exception:
         raise

@@ -12,10 +12,11 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-import copy
-import logging
 import os
+import six
+import copy
 import struct
+import logging
 
 from bucky2.errors import ConfigError, ProtocolError
 from bucky2.udpserver import UDPServer
@@ -195,7 +196,10 @@ class CollectDParser(object):
         if nvals != len(vtypes):
             raise ProtocolError("Values different than types.db info.")
         for i in range(nvals):
-            (vtype,) = struct.unpack("B", data[i])
+            if six.PY3:
+                vtype = data[i]
+            else:
+                (vtype,) = struct.unpack("B", data[i])
             if vtype != vtypes[i][1]:
                 raise ProtocolError("Type mismatch with types.db")
         data = data[nvals:]
@@ -206,6 +210,8 @@ class CollectDParser(object):
 
     def _parse_string(self, name):
         def _parser(sample, data):
+            if six.PY3:
+                data = data.decode()
             if data[-1] != '\0':
                 raise ProtocolError("Invalid string detected.")
             sample[name] = data[:-1]
@@ -302,7 +308,7 @@ class CollectDServer(UDPServer):
                 val = self.calculate(host, name, vtype, val, time)
                 if val is not None:
                     self.queue.put((host, name, val, time))
-        except ProtocolError, e:
+        except ProtocolError as e:
             log.error("Protocol error: %s", e)
             if self.last_sample is not None:
                 log.info("Last sample: %s", self.last_sample)

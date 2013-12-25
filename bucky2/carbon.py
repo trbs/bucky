@@ -59,7 +59,7 @@ class CarbonClient(client.Client):
                 self.sock.connect((self.ip, self.port))
                 log.info("Connected to Carbon at %s:%s", self.ip, self.port)
                 return
-            except socket.error, e:
+            except socket.error as e:
                 if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to connect to %s:%s: %s", self.ip, self.port, e)
@@ -88,7 +88,7 @@ class PlaintextClient(CarbonClient):
             try:
                 self.sock.sendall(mesg)
                 return
-            except socket.error, err:
+            except socket.error as err:
                 if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)
@@ -115,7 +115,7 @@ class PickleClient(CarbonClient):
             try:
                 self.sock.sendall(header + payload)
                 return
-            except socket.error, err:
+            except socket.error as err:
                 if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)

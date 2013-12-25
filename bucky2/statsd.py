@@ -14,11 +14,12 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import logging
-import math
 import re
-import threading
+import six
+import math
 import time
+import logging
+import threading
 
 import bucky2.udpserver as udpserver
 
@@ -58,7 +59,8 @@ class StatsDHandler(threading.Thread):
 
     def enqueue_timers(self, stime):
         ret = 0
-        for k, v in self.timers.iteritems():
+        iteritems = self.timers.items() if six.PY3 else self.timers.iteritems()
+        for k, v in iteritems:
             # Skip timers that haven't collected any values
             if not v:
                 continue
@@ -88,14 +90,16 @@ class StatsDHandler(threading.Thread):
 
     def enqueue_gauges(self, stime):
         ret = 0
-        for k, v in self.gauges.iteritems():
+        iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
+        for k, v in iteritems:
             self.enqueue("stats.gauges.%s" % k, v, stime)
             ret += 1
         return ret
 
     def enqueue_counters(self, stime):
         ret = 0
-        for k, v in self.counters.iteritems():
+        iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
+        for k, v in iteritems:
             self.enqueue("stats.%s" % k, v / self.flush_time, stime)
             self.enqueue("stats_counts.%s" % k, v, stime)
             self.counters[k] = 0
@@ -193,8 +197,15 @@ class StatsDServer(udpserver.UDPServer):
         self.handler.start()
         super(StatsDServer, self).run()
 
-    def handle(self, data, addr):
-        self.handler.handle(data)
-        if not self.handler.is_alive():
-            return False
-        return True
+    if six.PY3:
+        def handle(self, data, addr):
+            self.handler.handle(data.decode())
+            if not self.handler.is_alive():
+                return False
+            return True
+    else:
+        def handle(self, data, addr):
+            self.handler.handle(data)
+            if not self.handler.is_alive():
+                return False
+            return True

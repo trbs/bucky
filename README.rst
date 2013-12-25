@@ -58,6 +58,13 @@ daemonization. This is quite on purpose. The recommended way to
 run Bucky2 in production is via runit. There's an example service
 directory in Bucky2's source repository.
 
+Python 3 Support
+----------------
+
+Bucky2 supports Python 3. However this support is still very young
+and we would like to hear from you if you are running Bucky2 on
+Python3 and help us improve the support in real production environments.
+
 Command Line Options
 --------------------
 
