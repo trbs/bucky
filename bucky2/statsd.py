@@ -113,7 +113,8 @@ class StatsDHandler(threading.Thread):
 
     def enqueue_gauges(self, stime):
         ret = 0
-        for k, v in self.gauges.iteritems():
+        iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
+        for k, v in iteritems:
             self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
             self.gauges[k] = 0
             ret += 1
@@ -121,7 +122,8 @@ class StatsDHandler(threading.Thread):
 
     def enqueue_counters(self, stime):
         ret = 0
-        for k, v in self.counters.iteritems():
+        iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
+        for k, v in iteritems:
             if self.legacy_namespace:
                 stat_rate = "%s%s" % (self.name_legacy_rate, k)
                 stat_count = "%s%s" % (self.name_legacy_count, k)
