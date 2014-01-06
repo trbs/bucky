@@ -26,12 +26,14 @@ import bucky2.udpserver as udpserver
 
 log = logging.getLogger(__name__)
 
+
 def make_name(parts):
     name = ""
     for part in parts:
         if part:
             name = name + part + "."
     return name
+
 
 class StatsDHandler(threading.Thread):
     def __init__(self, queue, cfg):
