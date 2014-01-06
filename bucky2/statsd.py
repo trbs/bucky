@@ -26,9 +26,15 @@ import bucky2.udpserver as udpserver
 
 log = logging.getLogger(__name__)
 
+def make_name(parts):
+    name = ""
+    for part in parts:
+        if part:
+            name = name + part + "."
+    return name
 
 class StatsDHandler(threading.Thread):
-    def __init__(self, queue, flush_time=10):
+    def __init__(self, queue, cfg):
         super(StatsDHandler, self).__init__()
         self.daemon = True
         self.queue = queue
@@ -36,12 +42,29 @@ class StatsDHandler(threading.Thread):
         self.timers = {}
         self.gauges = {}
         self.counters = {}
-        self.flush_time = flush_time
+        self.flush_time = cfg.statsd_flush_time
+        self.legacy_namespace = cfg.statsd_legacy_namespace
+        self.global_prefix = cfg.statsd_global_prefix
+        self.prefix_counter = cfg.statsd_prefix_counter
+        self.prefix_timer = cfg.statsd_prefix_timer
+        self.prefix_gauge = cfg.statsd_prefix_gauge
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
             (re.compile("[^a-zA-Z_\-0-9\.]"), "")
         )
+
+        if self.legacy_namespace:
+            self.name_global = 'stats.'
+            self.name_legacy_rate = 'stats.'
+            self.name_legacy_count = 'stats_counts.'
+            self.name_timer = 'stats.timers.'
+            self.name_gauge = 'stats.gauges.'
+        else:
+            self.name_global = make_name([self.global_prefix])
+            self.name_counter = make_name([self.global_prefix, self.prefix_counter])
+            self.name_timer = make_name([self.global_prefix, self.prefix_timer])
+            self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
 
     def run(self):
         while True:
@@ -51,7 +74,7 @@ class StatsDHandler(threading.Thread):
                 num_stats = self.enqueue_timers(stime)
                 num_stats += self.enqueue_counters(stime)
                 num_stats += self.enqueue_gauges(stime)
-                self.enqueue("stats.numStats", num_stats, stime)
+                self.enqueue(self.name_global + "numStats", num_stats, stime)
 
     def enqueue(self, name, stat, stime):
         # No hostnames on statsd
@@ -77,12 +100,12 @@ class StatsDHandler(threading.Thread):
                 vsum = sum(v)
                 mean = vsum / float(len(v))
 
-            self.enqueue("stats.timers.%s.mean" % k, mean, stime)
-            self.enqueue("stats.timers.%s.upper" % k, vmax, stime)
+            self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
+            self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
             t = int(pct_thresh)
-            self.enqueue("stats.timers.%s.upper_%s" % (k, t), vthresh, stime)
-            self.enqueue("stats.timers.%s.lower" % k, vmin, stime)
-            self.enqueue("stats.timers.%s.count" % k, count, stime)
+            self.enqueue("%s%s.upper_%s" % (self.name_timer, k,t), vthresh, stime)
+            self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
+            self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
             self.timers[k] = []
             ret += 1
 
@@ -90,18 +113,23 @@ class StatsDHandler(threading.Thread):
 
     def enqueue_gauges(self, stime):
         ret = 0
-        iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
-        for k, v in iteritems:
-            self.enqueue("stats.gauges.%s" % k, v, stime)
+        for k, v in self.gauges.iteritems():
+            self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
+            self.gauges[k] = 0
             ret += 1
         return ret
 
     def enqueue_counters(self, stime):
         ret = 0
-        iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
-        for k, v in iteritems:
-            self.enqueue("stats.%s" % k, v / self.flush_time, stime)
-            self.enqueue("stats_counts.%s" % k, v, stime)
+        for k, v in self.counters.iteritems():
+            if self.legacy_namespace:
+                stat_rate = "%s%s" % (self.name_legacy_rate, k)
+                stat_count = "%s%s" % (self.name_legacy_count, k)
+            else:
+                stat_rate = "%s%s.rate" % (self.name_counter, k)
+                stat_count = "%s%s.count" % (self.name_counter, k)
+            self.enqueue(stat_rate, v / self.flush_time, stime)
+            self.enqueue(stat_count, v, stime)
             self.counters[k] = 0
             ret += 1
         return ret
@@ -191,7 +219,7 @@ class StatsDHandler(threading.Thread):
 class StatsDServer(udpserver.UDPServer):
     def __init__(self, queue, cfg):
         super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
-        self.handler = StatsDHandler(queue, flush_time=cfg.statsd_flush_time)
+        self.handler = StatsDHandler(queue, cfg)
 
     def run(self):
         self.handler.start()
