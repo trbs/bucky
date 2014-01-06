@@ -69,6 +69,7 @@ class StatsDHandler(threading.Thread):
             self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
 
     def run(self):
+        name_global_numstats = self.name_global + "numStats"
         while True:
             time.sleep(self.flush_time)
             stime = int(time.time())
@@ -76,7 +77,7 @@ class StatsDHandler(threading.Thread):
                 num_stats = self.enqueue_timers(stime)
                 num_stats += self.enqueue_counters(stime)
                 num_stats += self.enqueue_gauges(stime)
-                self.enqueue(self.name_global + "numStats", num_stats, stime)
+                self.enqueue(name_global_numstats, num_stats, stime)
 
     def enqueue(self, name, stat, stime):
         # No hostnames on statsd
