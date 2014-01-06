@@ -164,6 +164,19 @@ config file::
     # How often stats should be flushed to Graphite.
     statsd_flush_time = 10.0
 
+    # If the legacy namespace is enabled, the statsd backend uses the
+    # default prefixes except for counters, which are stored directly
+    # in stats.NAME for the rate and stats_counts.NAME for the
+    # absolute count.  If legacy names are disabled, the prefixes are
+    # configurable, and counters are stored under
+    # stats.counters.{rate,count} by default.  Any prefix can be set
+    # to None to skip it.
+    statsd_legacy_namespace = True
+    statsd_global_prefix = "stats"
+    statsd_prefix_counter = "counters"
+    statsd_prefix_timer = "timers"
+    statsd_prefix_gauge = "gauges"
+
     # Basic Graphite configuration
     graphite_ip = "127.0.0.1"
     graphite_port = 2003
