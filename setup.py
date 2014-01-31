@@ -52,7 +52,7 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2 :: Only',
         'Topic :: Internet :: Log Analysis',
-        'Topic :: System :: Networking :: Monitoring'
+        'Topic :: System :: Networking :: Monitoring',
         'Topic :: Utilities',
     ],
     zip_safe = False,
