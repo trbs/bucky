@@ -31,12 +31,12 @@ setup(
             'README.rst'
         )
     ).read(),
-    author = 'Paul J. Davis',
-    author_email = 'paul@cloudant.com',
+    author='Paul J. Davis',
+    author_email='paul@cloudant.com',
     maintainer='Trbs',
     maintainer_email='trbs@trbs.net',
-    license = 'ASF2.0',
-    url = 'http://github.com/trbs/bucky.git',
+    license='ASF2.0',
+    url='http://github.com/trbs/bucky.git',
     install_requires=install_requires,
 
     classifiers=[
