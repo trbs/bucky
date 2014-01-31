@@ -14,21 +14,23 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import heapq
+import six
 import math
-import random
 import time
+import random
+import heapq
+
 
 class ExpDecSample(object):
-    """\
+    """
     An exponentially-decaying random sample of longs. Based
     on the implementation in Coda Hale's metrics library:
-    
+
       https://github.com/codahale/metrics/blob/development/metrics-core/src/main/java/com/yammer/metrics/stats/ExponentiallyDecayingSample.java
     """
-    
+
     RESCALE_THRESHOLD = 60 * 60 * 1000000000
-    
+
     def __init__(self, reservoir_size, alpha):
         self.rsize = reservoir_size
         self.alpha = alpha
@@ -36,15 +38,15 @@ class ExpDecSample(object):
         self.count = 0
         self.start_time = self.tick()
         self.next_rescale = self.start_time + self.RESCALE_THRESHOLD
-    
+
     def clear(self):
         self.count = 0
         self.start_time = self.tick()
         self.next_rescale = self.start_time + self.RESCALE_THRESHOLD
-    
+
     def size(self):
         return int(min(self.rsize, self.count))
-    
+
     def update(self, val, when=None):
         if when is None:
             when = self.tick()
@@ -70,8 +72,12 @@ class ExpDecSample(object):
             newvals.append((k * factor, v))
         self.values = newvals
 
-    def tick(self):
-        return long(time.time() * 1000000000.0)
+    if six.PY3:
+        def tick(self):
+            return time.time() * 1000000000.0
+    else:
+        def tick(self):
+            return long(time.time() * 1000000000.0)  # noqa
 
     def weight(self, t):
         return math.exp(self.alpha * t)

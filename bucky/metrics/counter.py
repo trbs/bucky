@@ -16,16 +16,17 @@
 
 from bucky.metrics.metric import Metric, MetricValue as MV
 
+
 class Counter(Metric):
     def __init__(self, name):
         self.name = name
         self.count = 0
-    
+
     def update(self, value):
         self.value += value
-    
+
     def clear(self):
         self.value = 0
-    
+
     def metrics(self):
         return [MV(self.name, self.count)]

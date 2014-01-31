@@ -15,18 +15,17 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
-import sys
-
 from setuptools import setup
-
 from bucky import __version__
 
-setup(
-    name = 'bucky',
-    version = __version__,
+install_requires = [e.strip() for e in open("requirements.txt") if not e.startswith("#")]
 
-    description = 'CollectD and StatsD adapter for Graphite',
-    long_description = file(
+setup(
+    name='bucky',
+    version=__version__,
+
+    description='StatsD and CollectD adapter for Graphite',
+    long_description=open(
         os.path.join(
             os.path.dirname(__file__),
             'README.rst'
@@ -34,10 +33,13 @@ setup(
     ).read(),
     author = 'Paul J. Davis',
     author_email = 'paul@cloudant.com',
+    maintainer='Trbs',
+    maintainer_email='trbs@trbs.net',
     license = 'ASF2.0',
     url = 'http://github.com/trbs/bucky.git',
+    install_requires=install_requires,
 
-    classifiers = [
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Other Environment',
         'Intended Audience :: Developers',
@@ -50,14 +52,15 @@ setup(
         'Operating System :: POSIX :: BSD',
         'Operating System :: Unix',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2 :: Only',
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         'Topic :: Internet :: Log Analysis',
         'Topic :: System :: Networking :: Monitoring',
         'Topic :: Utilities',
     ],
-    zip_safe = False,
-    packages = ['bucky', 'bucky.metrics', 'bucky.metrics.stats'],
-    include_package_data = True,
+    zip_safe=False,
+    packages=['bucky', 'bucky.metrics', 'bucky.metrics.stats'],
+    include_package_data=True,
 
     entry_points="""\
     [console_scripts]

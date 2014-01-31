@@ -12,9 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-import logging
-import socket
+import six
 import sys
+import socket
+import logging
 import multiprocessing
 
 import bucky.cfg as cfg
@@ -50,6 +51,7 @@ class UDPServer(multiprocessing.Process):
             # debug logging. In production mode these calls have quite a lot of overhead
             # for statements that will never do anything.
             import functools
+
             def debugsend(f):
                 @functools.wraps(f)
                 def wrapper(*args, **kwargs):
@@ -69,7 +71,7 @@ class UDPServer(multiprocessing.Process):
         recvfrom = self.sock_recvfrom
         while True:
             data, addr = recvfrom(65535)
-            if data == 'EXIT':
+            if data == b'EXIT':
                 return
             if not self.handle(data, addr):
                 return
@@ -80,6 +82,13 @@ class UDPServer(multiprocessing.Process):
     def close(self):
         self.send('EXIT')
 
-    def send(self, data):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(data, (self.ip, self.port))
+    if six.PY3:
+        def send(self, data):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            if not isinstance(data, bytes):
+                data = data.encode()
+            sock.sendto(data, 0, (self.ip, self.port))
+    else:
+        def send(self, data):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(data, 0, (self.ip, self.port))

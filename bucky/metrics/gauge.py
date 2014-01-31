@@ -21,12 +21,12 @@ class Gauge(Metric):
     def __init__(self, name):
         self.name = name
         self.value = 0.0
-    
+
     def update(self, value):
         self.value = value
-    
+
     def clear(self):
         pass
-    
+
     def metrics(self):
         return [MV(self.name, self.value)]

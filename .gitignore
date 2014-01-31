@@ -1,4 +1,7 @@
 *.pyc
 *.pyo
+*.egg
+.coverage
 bucky.egg-info/
+build/
 dist/

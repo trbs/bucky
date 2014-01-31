@@ -1,9 +1,20 @@
 Bucky
 -----
 
+:info: Bucky Statsd and Collectd server for Graphite
+
+.. image:: https://travis-ci.org/trbs/bucky.png?branch=master
+   :target: https://travis-ci.org/trbs/bucky
+
+.. image:: https://coveralls.io/repos/trbs/bucky/badge.png
+   :target: https://coveralls.io/r/trbs/bucky 
+
 Bucky is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
 and from StatsD clients.
+
+Bucky is a fork of the excellent, although seemingly abandoned, cloudant
+project Bucky. (https://github.com/cloudant/bucky/)
 
 Installation
 ------------
@@ -49,6 +60,13 @@ The astute observer will notice that Bucky has no flags for
 daemonization. This is quite on purpose. The recommended way to
 run Bucky in production is via runit. There's an example service
 directory in Bucky's source repository.
+
+Python 3 Support
+----------------
+
+Bucky supports Python 3. However this support is still very young
+and we would like to hear from you if you are running Bucky on
+Python3 and help us improve the support in real production environments.
 
 Command Line Options
 --------------------
@@ -145,6 +163,19 @@ config file::
     
     # How often stats should be flushed to Graphite.
     statsd_flush_time = 10.0
+
+    # If the legacy namespace is enabled, the statsd backend uses the
+    # default prefixes except for counters, which are stored directly
+    # in stats.NAME for the rate and stats_counts.NAME for the
+    # absolute count.  If legacy names are disabled, the prefixes are
+    # configurable, and counters are stored under
+    # stats.counters.{rate,count} by default.  Any prefix can be set
+    # to None to skip it.
+    statsd_legacy_namespace = True
+    statsd_global_prefix = "stats"
+    statsd_prefix_counter = "counters"
+    statsd_prefix_timer = "timers"
+    statsd_prefix_gauge = "gauges"
 
     # Basic Graphite configuration
     graphite_ip = "127.0.0.1"

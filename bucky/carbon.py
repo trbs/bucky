@@ -14,11 +14,12 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import logging
-import socket
-import struct
+import six
 import sys
 import time
+import socket
+import struct
+import logging
 try:
     import cPickle as pickle
 except ImportError:
@@ -28,12 +29,17 @@ import bucky.client as client
 import bucky.names as names
 
 
+if six.PY3:
+    xrange = range
+
+
 log = logging.getLogger(__name__)
 
 
 class DebugSocket(object):
     def sendall(self, data):
         sys.stdout.write(data)
+
 
 class CarbonClient(client.Client):
     def __init__(self, cfg, pipe):
@@ -58,8 +64,8 @@ class CarbonClient(client.Client):
                 self.sock.connect((self.ip, self.port))
                 log.info("Connected to Carbon at %s:%s", self.ip, self.port)
                 return
-            except socket.error, e:
-                if i+1 >= self.max_reconnects:
+            except socket.error as e:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to connect to %s:%s: %s", self.ip, self.port, e)
                 if self.reconnect_delay > 0:
@@ -78,6 +84,7 @@ class CarbonClient(client.Client):
     def send(self, host, name, value, mtime):
         raise NotImplemented
 
+
 class PlaintextClient(CarbonClient):
     def send(self, host, name, value, mtime):
         stat = names.statname(host, name)
@@ -86,11 +93,12 @@ class PlaintextClient(CarbonClient):
             try:
                 self.sock.sendall(mesg)
                 return
-            except socket.error, err:
-                if i+1 >= self.max_reconnects:
+            except socket.error as err:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()
+
 
 class PickleClient(CarbonClient):
     def __init__(self, cfg, pipe):
@@ -112,8 +120,8 @@ class PickleClient(CarbonClient):
             try:
                 self.sock.sendall(header + payload)
                 return
-            except socket.error, err:
-                if i+1 >= self.max_reconnects:
+            except socket.error as err:
+                if i + 1 >= self.max_reconnects:
                     raise
                 log.error("Failed to send data to Carbon server: %s", err)
                 self.reconnect()

@@ -1,10 +1,18 @@
+import six
 import math
 
+
+if six.PY3:
+    ZERO_LONG = 0
+else:
+    ZERO_LONG = long(0)  # noqa
+
+
 class EWMA(object):
-    """\
+    """
     Exponentially-weighted moving avergage. Based on the
     implementation in Coda Hale's metrics library:
-    
+
        https://github.com/codahale/metrics/blob/development/metrics-core/src/main/java/com/yammer/metrics/stats/EWMA.java
     """
 
@@ -15,11 +23,11 @@ class EWMA(object):
     @staticmethod
     def oneMinuteEWMA():
         return EWMA(EWMA.M1_ALPHA, 5.0)
-    
+
     @staticmethod
     def fiveMinuteEWMA():
         return EWMA(EWMA.M5_ALPHA, 5.0)
-    
+
     @staticmethod
     def fifteenMinuteEWMA():
         return EWMA(EWMA.M15_ALPHA, 5.0)
@@ -28,17 +36,17 @@ class EWMA(object):
         self.alpha = alpha
         self.interval = interval
         self.curr_rate = None
-        self.uncounted = 0L
-    
+        self.uncounted = ZERO_LONG
+
     def update(self, val):
         self.uncounted += val
-    
+
     def rate(self):
         return self.curr_rate
-    
+
     def tick(self):
         count = self.uncounted
-        self.uncounted = 0L
+        self.uncounted = ZERO_LONG
         instant_rate = count / self.interval
         if self.initialized:
             self.curr_rate += (self.alpha * (instant_rate - self.curr_rate))

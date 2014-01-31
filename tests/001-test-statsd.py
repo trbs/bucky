@@ -17,6 +17,7 @@
 import t
 import bucky.statsd
 
+
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8126)
 @t.udp_srv(bucky.statsd.StatsDServer)

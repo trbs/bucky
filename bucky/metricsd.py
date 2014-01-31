@@ -12,12 +12,17 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-import logging
-import Queue
 import re
+import six
 import struct
-import multiprocessing
 import time
+import logging
+import multiprocessing
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 import bucky.names as names
 
@@ -102,11 +107,11 @@ class MetricsDParser(object):
         (length,) = struct.unpack("!H", data[:2])
         if length > len(data) - 2:
             raise ProtocolError("Truncated string value")
-        if data[2+length] != 0x00:
+        if data[2 + length] != 0x00:
             raise ProtocolError("String missing null-byte terminator")
         try:
-            ret = data[2:2+length-1].decode("utf-8")
-            return ret, data[2+length+1:]
+            ret = data[2:2 + length - 1].decode("utf-8")
+            return ret, data[2 + length + 1:]
         except UnicodeDecodeError:
             raise ProtocolError("String is not value UTF-8")
 
@@ -117,8 +122,8 @@ class MetricsDParser(object):
         sz = struct.calcsize(fmt)
         if sz > len(data) - 1:
             raise ProtocolError("Truncated numeric value")
-        (val,) = struct.unpack(data[1:1+sz])
-        return val, data[1+sz:]
+        (val, ) = struct.unpack(data[1:1 + sz])
+        return val, data[1 + sz:]
 
 
 class MetricsDHandler(multiprocessing.Process):
@@ -136,7 +141,7 @@ class MetricsDHandler(multiprocessing.Process):
 
     def update_metric(self, mc):
         if mc.action is MetricsDCommand.DELETE:
-            metrics.pop(mc.name, None)
+            self.metrics.pop(mc.name, None)
             return
         metric = self.metrics.get(mc.name)
         if mc.action is MetricsDCommand.CLEAR:
@@ -158,13 +163,19 @@ class MetricsDHandler(multiprocessing.Process):
             try:
                 mv = self.inbox.get(True, to_sleep)
                 self.update_metric(mv)
-            except Queue.Empty:
+            except queue.Empty:
                 continue
 
-    def flush_updates(self):
-        for _, metric in self.metrics.iteritems():
-            for v in metric.metrics():
-                self.outbox.put((v.name, v.value, v.time))
+    if six.PY3:
+        def flush_updates(self):
+            for _, metric in self.metrics.items():
+                for v in metric.metrics():
+                    self.outbox.put((v.name, v.value, v.time))
+    else:
+        def flush_updates(self):
+            for _, metric in self.metrics.iteritems():
+                for v in metric.metrics():
+                    self.outbox.put((v.name, v.value, v.time))
 
 
 class MetricsDServer(UDPServer):

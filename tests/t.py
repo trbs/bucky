@@ -14,9 +14,11 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
-import Queue
+# flake8: noqa
+
 import time
 import multiprocessing
+from functools import wraps
 
 import bucky.cfg as cfg
 cfg.debug = True
@@ -28,6 +30,7 @@ class set_cfg(object):
         self.value = value
 
     def __call__(self, func):
+        @wraps(func)
         def run(*args, **kwargs):
             curr = getattr(cfg, self.name)
             try:
@@ -35,7 +38,6 @@ class set_cfg(object):
                 func(*args, **kwargs)
             finally:
                 setattr(cfg, self.name, curr)
-        run.func_name = func.func_name
         return run
 
 
@@ -44,6 +46,7 @@ class udp_srv(object):
         self.stype = stype
 
     def __call__(self, func):
+        @wraps(func)
         def run():
             q = multiprocessing.Queue()
             s = self.stype(q, cfg)
@@ -54,7 +57,6 @@ class udp_srv(object):
                 s.close()
                 if not self.closed(s):
                     raise RuntimeError("Server didn't die.")
-        run.func_name = func.func_name
         return run
 
     def closed(self, s):
@@ -74,36 +76,44 @@ def same_stat(host, name, value, stat):
 def eq(a, b):
     assert a == b, "%r != %r" % (a, b)
 
+
 def ne(a, b):
     assert a != b, "%r == %r" % (a, b)
+
 
 def lt(a, b):
     assert a < b, "%r >= %r" % (a, b)
 
+
 def gt(a, b):
     assert a > b, "%r <= %r" % (a, b)
+
 
 def isin(a, b):
     assert a in b, "%r is not in %r" % (a, b)
 
+
 def isnotin(a, b):
     assert a not in b, "%r is in %r" % (a, b)
+
 
 def has(a, b):
     assert hasattr(a, b), "%r has no attribute %r" % (a, b)
 
+
 def hasnot(a, b):
     assert not hasattr(a, b), "%r has an attribute %r" % (a, b)
 
+
 def istype(a, b):
     assert isinstance(a, b), "%r is not an instance of %r" % (a, b)
+
 
 def raises(exctype, func, *args, **kwargs):
     try:
         func(*args, **kwargs)
     except exctype:
         return
-    func_name = getattr(func, "func_name", "<builtin_function>")
-    raise AssertionError("Function %s did not raise %s" % (
-            func_name, exctype.__name__))
+    func_name = getattr(func, "__name__", "<builtin_function>")
+    raise AssertionError("Function %s did not raise %s" % (func_name, exctype.__name__))
 

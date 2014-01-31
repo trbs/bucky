@@ -15,15 +15,19 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
-import Queue
 import struct
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 import t
 import bucky.collectd
 
+
 def pkts():
     fname = os.path.join(os.path.dirname(__file__), "collectd.pkts")
-    with open(fname) as handle:
+    with open(fname, 'rb') as handle:
         length = handle.read(2)
         while length:
             (dlen,) = struct.unpack("!H", length)
@@ -38,11 +42,11 @@ def test_pkt_reader():
 
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter(q, s):
-    s.send(pkts().next())
+    s.send(next(pkts()))
     s = q.get()
     while s:
-        print s
+        print(s)
         try:
             s = q.get(False)
-        except Queue.Empty:
+        except queue.Empty:
             break
