@@ -1,0 +1,11 @@
+Bucky Changelog
+===============
+
+Bucky 0.3.0:
+
+* [FIX] Change github url
+* [NEW] Change process names of children when setproctitle is installed
+* [NEW] Start keeping a changelog 
+
+
+
