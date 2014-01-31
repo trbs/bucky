@@ -69,7 +69,7 @@ class StatsDHandler(threading.Thread):
             mean, vthresh = vmin, vmax
 
             if count > 1:
-                thresh_idx = int(math.floor(float(pct_thresh) / 100.0 * count))
+                thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
                 v = v[:thresh_idx]
                 vthresh = v[-1]
                 vsum = sum(v)
@@ -89,18 +89,15 @@ class StatsDHandler(threading.Thread):
     def enqueue_gauges(self, stime):
         ret = 0
         for k, v in self.gauges.iteritems():
-            stat = "stats.gauges.%s" % k
-            self.enqueue(stat, v, stime)
+            self.enqueue("stats.gauges.%s" % k, v, stime)
             ret += 1
         return ret
 
     def enqueue_counters(self, stime):
         ret = 0
         for k, v in self.counters.iteritems():
-            stat = "stats.%s" % k
-            self.enqueue(stat, v / self.flush_time, stime)
-            stat = "stats_counts.%s" % k
-            self.enqueue(stat, v, stime)
+            self.enqueue("stats.%s" % k, v / self.flush_time, stime)
+            self.enqueue("stats_counts.%s" % k, v, stime)
             self.counters[k] = 0
             ret += 1
         return ret
@@ -186,7 +183,7 @@ class StatsDHandler(threading.Thread):
             self.counters[key] += val
 
     def bad_line(self):
-        log.error("StatsD: Invalid line: '%s'" % self.line.strip())
+        log.error("StatsD: Invalid line: '%s'", self.line.strip())
 
 
 class StatsDServer(udpserver.UDPServer):

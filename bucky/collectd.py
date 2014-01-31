@@ -102,7 +102,7 @@ class CollectDTypes(object):
                     if not line.strip():
                         continue
                     self._add_type_line(line)
-            log.info("Loaded collectd types from %s" % types_db)
+            log.info("Loaded collectd types from %s", types_db)
 
     def _add_type_line(self, line):
         types = {
@@ -150,7 +150,7 @@ class CollectDParser(object):
         sample = {}
         for (ptype, data) in self.parse_data(data):
             if ptype not in types:
-                log.debug("Ignoring part type: 0x%02x" % ptype)
+                log.debug("Ignoring part type: 0x%02x", ptype)
                 continue
             if ptype != 0x0006:
                 types[ptype](sample, data)
@@ -236,8 +236,7 @@ class CollectDConverter(object):
             if name is None:
                 return # treat None as "ignore sample"
         except:
-            log.exception("Exception in sample handler  %s (%s):" % (
-                sample["plugin"], handler))
+            log.exception("Exception in sample handler  %s (%s):", sample["plugin"], handler)
             return
         host = sample.get("host", "")
         return (
@@ -262,18 +261,18 @@ class CollectDConverter(object):
 
     def _add_converter(self, name, inst, source="unknown"):
         if name not in self.converters:
-            log.info("Converter: %s from %s" % (name, source))
+            log.info("Converter: %s from %s", name, source)
             self.converters[name] = inst
             return
         kpriority = getattr(inst, "PRIORITY", 0)
         ipriority = getattr(self.converters[name], "PRIORITY", 0)
         if kpriority > ipriority:
-            log.info("Replacing: %s" % name)
-            log.info("Converter: %s from %s" % (name, source))
+            log.info("Replacing: %s", name)
+            log.info("Converter: %s from %s", name, source)
             self.converters[name] = inst
             return
-        log.info( "Ignoring: %s (%s) from %s (priority: %s vs %s)"
-            % (name, inst, source, kpriority, ipriority) )
+        log.info( "Ignoring: %s (%s) from %s (priority: %s vs %s)",
+                    name, inst, source, kpriority, ipriority)
 
 
 class CollectDServer(UDPServer):
@@ -299,9 +298,9 @@ class CollectDServer(UDPServer):
                 if val is not None:
                     self.queue.put((host, name, val, time))
         except ProtocolError, e:
-            log.error("Protocol error: %s" % e)
+            log.error("Protocol error: %s", e)
             if self.last_sample is not None:
-                log.info("Last sample: %s" % self.last_sample)
+                log.info("Last sample: %s", self.last_sample)
         return True
 
     def calculate(self, host, name, vtype, val, time):
@@ -312,8 +311,8 @@ class CollectDServer(UDPServer):
             3: self._calc_absolute  # absolute
         }
         if vtype not in handlers:
-            log.error("Invalid value type %s for %s" % (vtype, name))
-            log.info("Last sample: %s" % self.last_sample)
+            log.error("Invalid value type %s for %s", vtype, name)
+            log.info("Last sample: %s", self.last_sample)
             return
         return handlers[vtype](host, name, val, time)
 
@@ -329,7 +328,7 @@ class CollectDServer(UDPServer):
         self.prev_samples[key] = (val, time)
         if val < pval or time <= ptime:
             log.error("Invalid COUNTER update for: %s:%s" % key)
-            log.info("Last sample: %s" % self.last_sample)
+            log.info("Last sample: %s", self.last_sample)
             return
         return float(val - pval) / (time - ptime)
 
@@ -343,7 +342,7 @@ class CollectDServer(UDPServer):
         self.prev_samples[key] = (val, time)
         if time <= ptime:
             log.debug("Invalid DERIVE update for: %s:%s" % key)
-            log.debug("Last sample: %s" % self.last_sample)
+            log.debug("Last sample: %s", self.last_sample)
             return
         return float(val - pval) / (time - ptime)
 
@@ -356,6 +355,6 @@ class CollectDServer(UDPServer):
         self.prev_samples[key] = (val, time)
         if time <= ptime:
             log.error("Invalid ABSOLUTE update for: %s:%s" % key)
-            log.info("Last sample: %s" % self.last_sample)
+            log.info("Last sample: %s", self.last_sample)
             return
         return float(val) / (time - ptime)
