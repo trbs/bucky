@@ -26,6 +26,22 @@ local Graphite (Carbon) daemon on 127.0.0.1:2003.
 These are all optional as illustrated below. You can also disable the
 CollectD or StatsD servers completely if you so desire.
 
+Process Names
+-------------
+
+If the py-setproctitle_ module is installed Bucky will use it to set
+user readable process names. This will make the child processes of Bucky
+easier to identify. Please note that this is completely optional.
+
+To install py-setproctitle_ run::
+
+    $ easy_install setproctitle
+    # or
+    $ pip install setproctitle
+
+.. _py-setproctitle: https://github.com/dvarrazzo/py-setproctitle
+
+
 Running Bucky For Real
 ----------------------
 
@@ -197,7 +213,7 @@ good to go.
 
 
 Configuring MetricsD
-------------------
+--------------------
 
 TODO
 
