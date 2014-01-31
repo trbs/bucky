@@ -6,8 +6,8 @@ Bucky
 .. image:: https://travis-ci.org/trbs/bucky.png?branch=master
    :target: https://travis-ci.org/trbs/bucky
 
-.. image:: https://coveralls.io/repos/trbs/bucky/badge.png
-   :target: https://coveralls.io/r/trbs/bucky 
+.. image:: https://coveralls.io/repos/trbs/bucky/badge.png?branch=master
+   :target: https://coveralls.io/r/trbs/bucky?branch=master
 
 Bucky is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
