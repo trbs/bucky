@@ -40,11 +40,11 @@ import bucky.statsd as statsd
 
 log = logging.getLogger(__name__)
 levels = {
-    'CRITICAL' : logging.CRITICAL,
-    'ERROR'    : logging.ERROR,
-    'WARNING'  : logging.WARNING,
-    'INFO'     : logging.INFO,
-    'DEBUG'    : logging.DEBUG,
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG,
 }
 
 __usage__ = "%prog [OPTIONS] [CONFIG_FILE]"
