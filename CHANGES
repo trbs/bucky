@@ -1,6 +1,15 @@
 Bucky Changelog
 ===============
 
+Bucky 2.0.0:
+
+* [NEW] Allow Bucky to drop priveleges
+* [NEW] Allow Bucky to set nice level (process priority)
+* [NEW] Python 3 Support
+* [FIX] MetricDHandler incorrect reference to metrics
+* [FIX] Multiple small speed optimalisations
+* [FIX] Do not use string formatting for debug log lines, use much more efficient arguments instead
+
 Bucky 0.3.1:
 
 * [FIX] setup.py
