@@ -34,9 +34,12 @@ class UDPServer(multiprocessing.Process):
     def __init__(self, ip, port):
         super(UDPServer, self).__init__()
         self.daemon = True
+        addrinfo = socket.getaddrinfo(ip, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
+        af, socktype, proto, canonname, addr = addrinfo[0]
+        ip, port = addr[:2]
         self.ip = ip
         self.port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = socket.socket(af, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             self.sock.bind((ip, port))
@@ -71,6 +74,7 @@ class UDPServer(multiprocessing.Process):
         recvfrom = self.sock_recvfrom
         while True:
             data, addr = recvfrom(65535)
+            addr = addr[:2]  # for compatibility with longer ipv6 tuples
             if data == b'EXIT':
                 return
             if not self.handle(data, addr):
