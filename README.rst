@@ -13,9 +13,6 @@ Bucky is a small server for collecting and translating metrics for
 Graphite. It can current collect metric data from CollectD daemons
 and from StatsD clients.
 
-Bucky is a fork of the excellent, although seemingly abandoned, cloudant
-project Bucky. (https://github.com/cloudant/bucky/)
-
 Installation
 ------------
 
