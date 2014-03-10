@@ -240,7 +240,9 @@ def main():
 
     if cfg.processor is not None:
         psampleq = multiprocessing.Queue()
-        proc = processor.CustomProcessor(cfg.processor, sampleq, psampleq)
+        drop = cfg.processor_drop_on_error
+        proc = processor.CustomProcessor(cfg.processor, sampleq, psampleq,
+                                         drop_on_error=drop)
         proc.start()
     else:
         proc = None
