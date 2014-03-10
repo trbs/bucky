@@ -36,6 +36,7 @@ import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+import bucky.processor as processor
 
 
 log = logging.getLogger(__name__)
@@ -237,6 +238,14 @@ def main():
         servers.append(stype(sampleq, cfg))
         servers[-1].start()
 
+    if cfg.processor is not None:
+        psampleq = multiprocessing.Queue()
+        proc = processor.CustomProcessor(cfg.processor, sampleq, psampleq)
+        proc.start()
+    else:
+        proc = None
+        psampleq = sampleq
+
     if cfg.graphite_pickle_enabled:
         carbon_client = carbon.PickleClient
     else:
@@ -252,13 +261,13 @@ def main():
     def shutdown(signum, frame):
         for server in servers:
             server.close()
-            sampleq.put(None)
+            sampleq.put(None)  # FIXME? change to psampleq?
 
     signal.signal(signal.SIGTERM, shutdown)
 
     while True:
         try:
-            sample = sampleq.get(True, 1)
+            sample = psampleq.get(True, 1)
             if not sample:
                 break
             for instance, pipe in clients:
@@ -272,6 +281,9 @@ def main():
             if not srv.is_alive():
                 log.error("Server thread died. Exiting.")
                 sys.exit(1)
+        if proc is not None and not proc.is_alive():
+            log.error("Processor thread died. Exiting.")
+            sys.exit(1)
 
     for child in multiprocessing.active_children():
         child.terminate()
