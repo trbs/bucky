@@ -18,6 +18,12 @@ import t
 import bucky.statsd
 
 
+def test_make_name():
+    assert bucky.statsd.make_name(["these", "are", "some", "parts"]) == "these.are.some.parts."
+    assert bucky.statsd.make_name(["these", "are", None, "parts"]) == "these.are.parts."
+    assert bucky.statsd.make_name(["these", "are", None, ""]) == "these.are."
+
+
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8126)
 @t.udp_srv(bucky.statsd.StatsDServer)
@@ -82,6 +88,17 @@ def test_simple_timer(q, s):
     t.same_stat(None, "stats.timers.gorm.upper_90", 1, q.get())
     t.same_stat(None, "stats.timers.gorm.lower", 1, q.get())
     t.same_stat(None, "stats.timers.gorm.count", 10, q.get())
+    t.same_stat(None, "stats.numStats", 1, q.get())
+
+
+@t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8131)
+@t.set_cfg("statsd_legacy_namespace", False)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_simple_counter_not_legacy_namespace(q, s):
+    s.send("gorm:1|c")
+    t.same_stat(None, "stats.counters.gorm.rate", 2, q.get())
+    t.same_stat(None, "stats.counters.gorm.count", 1, q.get())
     t.same_stat(None, "stats.numStats", 1, q.get())
 
 
