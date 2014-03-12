@@ -15,9 +15,8 @@
 # Copyright 2011 Cloudant, Inc.
 
 import t
-import bucky.statsd
 
 
 def test_version_number():
     from bucky import version_info, __version__
-    assert __version__ == ".".join(map(str, version_info))
+    t.eq(__version__, ".".join(map(str, version_info)))
