@@ -38,7 +38,9 @@ graphite_pickle_buffer_size = 500
 full_trace = False
 
 name_prefix = None
+name_prefix_parts = None
 name_postfix = None
+name_postfix_parts = None
 name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
