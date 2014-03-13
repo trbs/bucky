@@ -17,12 +17,12 @@ log = logging.getLogger(__name__)
 
 
 class Processor(multiprocessing.Process):
-    def __init__(self, in_queue, out_queue, drop_on_error=False):
+    def __init__(self, in_queue, out_queue, cfg):
         super(Processor, self).__init__()
         self.daemon = True
         self.in_queue = in_queue
         self.out_queue = out_queue
-        self.drop_on_error = drop_on_error
+        self.drop_on_error = cfg.processor_drop_on_error
 
     def run(self):
         setproctitle("bucky: %s" % self.__class__.__name__)
@@ -48,10 +48,9 @@ class Processor(multiprocessing.Process):
 
 
 class CustomProcessor(Processor):
-    def __init__(self, function, in_queue, out_queue, drop_on_error=False):
-        super(CustomProcessor, self).__init__(in_queue, out_queue,
-                                              drop_on_error=drop_on_error)
-        self.function = function
+    def __init__(self, in_queue, out_queue, cfg):
+        super(CustomProcessor, self).__init__(in_queue, out_queue, cfg)
+        self.function = cfg.processor
 
     def process(self, host, name, val, time):
         return self.function(host, name, val, time)
