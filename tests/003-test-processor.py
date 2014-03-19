@@ -1,5 +1,4 @@
 import time
-import random
 import multiprocessing
 from functools import wraps
 
@@ -30,8 +29,19 @@ def processor(func):
                 break
             time.sleep(0.1)
         if not dead:
-            raise RuntimeError("Server didn't die.")
+            proc.terminate()
     return run
+
+
+def get_simple_data(times=100):
+    data = []
+    for i in range(times):
+        host = "tests.host-%d" % i
+        name = "metric-%d" % i
+        value = i
+        timestamp = int(time.time() + i)
+        data.append((host, name, value, timestamp))
+    return data
 
 
 def send_get_data(indata, inq, outq):
@@ -52,28 +62,21 @@ def identity(host, name, val, time):
 @t.set_cfg("processor", identity)
 @processor
 def test_start_stop(inq, outq, proc):
-    assert proc.is_alive(), "Processor not alive."
+    t.eq(proc.is_alive(), True)
     inq.put(None)
     time.sleep(0.5)
-    assert not proc.is_alive(), "Processor not killed by putting None in queue"
+    t.eq(proc.is_alive(), False)
 
 
 @t.set_cfg("processor", identity)
 @processor
 def test_plumbing(inq, outq, proc):
-    data = []
-    times = 100
-    for i in range(times):
-        host = "tests.host-%d" % i
-        name = "test-plumbing-%d" % i
-        value = i
-        timestamp = int(time.time() + i)
-        data.append((host, name, value, timestamp))
+    data = get_simple_data(100)
     i = 0
     for sample in send_get_data(data, inq, outq):
         t.eq(sample, data[i])
         i += 1
-    t.eq(i, times)
+    t.eq(i, 100)
 
 
 def filter_even(host, name, val, timestamp):
@@ -85,16 +88,35 @@ def filter_even(host, name, val, timestamp):
 @t.set_cfg("processor", filter_even)
 @processor
 def test_filter(inq, outq, proc):
-    data = []
-    times = 100
-    for i in range(times):
-        host = "tests.host-%d" % i
-        name = "test-filter-%d" % i
-        timestamp = int(time.time() + i)
-        data.append((host, name, 0, timestamp))
-        data.append((host, name, 1, timestamp))
+    data = get_simple_data(100)
     i = 0
     for sample in send_get_data(data, inq, outq):
-        t.eq(sample[2], 1)
+        t.eq(sample[2] % 2, 1)
         i += 1
-    t.eq(i, times)
+    t.eq(i, 50)
+
+
+def raise_error(host, name, val, timestamp):
+    raise Exception()
+
+
+@t.set_cfg("processor", raise_error)
+@processor
+def test_function_error(inq, outq, proc):
+    data = get_simple_data(100)
+    i = 0
+    for sample in send_get_data(data, inq, outq):
+        t.eq(sample, data[i])
+        i += 1
+    t.eq(proc.is_alive(), True)
+    t.eq(i, 100)
+
+
+@t.set_cfg("processor", raise_error)
+@t.set_cfg("processor_drop_on_error", True)
+@processor
+def test_function_error_drop(inq, outq, proc):
+    data = get_simple_data(100)
+    samples = list(send_get_data(data, inq, outq))
+    t.eq(proc.is_alive(), True)
+    t.eq(len(samples), 0)
