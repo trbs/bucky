@@ -128,3 +128,41 @@ def test_simple_absolute(q, s):
     samples = send_get_data(q, s, 'collectd-squares.pkts')
     seq = lambda i: (i + 1) ** 2 / 2.
     check_samples(samples, seq, 9, 'test.squares.absolute')
+
+
+@cdtypes("gauge value:GAUGE:5:50\n" + TDB_DERIVE + TDB_COUNTER + TDB_ABSOLUTE)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_simple_gauge_bounds(q, s):
+    # raw values sent are i^2 for i in [0, 9]
+    samples = send_get_data(q, s, 'collectd-squares.pkts')
+    seq = lambda i: (i + 3)**2
+    check_samples(samples, seq, 5, 'test.squares.gauge')
+
+
+@cdtypes("derive value:DERIVE:3:8\n" + TDB_GAUGE + TDB_COUNTER + TDB_ABSOLUTE)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_simple_derive_bounds(q, s):
+    # raw values sent are i^2 for i in [0, 9]
+    # (i+1)^2-i^2=2*i+1, devided by 2 (time interval)
+    samples = send_get_data(q, s, 'collectd-squares.pkts')
+    seq = lambda i: 3 + (2 * i + 1) / 2.
+    check_samples(samples, seq, 5, 'test.squares.derive')
+
+
+@cdtypes("counter value:COUNTER:3:8\n" + TDB_GAUGE + TDB_DERIVE + TDB_ABSOLUTE)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_simple_counter_bounds(q, s):
+    # raw values sent are i^2 for i in [0, 9]
+    # (i+1)^2-i^2=2*i+1, devided by 2 (time interval)
+    samples = send_get_data(q, s, 'collectd-squares.pkts')
+    seq = lambda i: 3 + (2 * i + 1) / 2.
+    check_samples(samples, seq, 5, 'test.squares.counter')
+
+
+@cdtypes("absolute value:ABSOLUTE:5:35\n" + TDB_GAUGE + TDB_DERIVE + TDB_COUNTER)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_simple_absolute_bounds(q, s):
+    # raw values sent are i^2 for i in [0, 9], devided by 2 (time interval)
+    samples = send_get_data(q, s, 'collectd-squares.pkts')
+    seq = lambda i: (i + 4)**2 / 2.
+    check_samples(samples, seq, 5, 'test.squares.absolute')
