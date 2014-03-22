@@ -97,7 +97,7 @@ TYPESDB = TDB_GAUGE + TDB_DERIVE + TDB_COUNTER + TDB_ABSOLUTE
 def test_simple_gauge(q, s):
     # raw values sent are i^2 for i in [0, 9]
     samples = send_get_data(q, s, 'collectd-squares.pkts')
-    seq = lambda i: i**2
+    seq = lambda i: i ** 2
     check_samples(samples, seq, 10, 'test.squares.gauge')
 
 
@@ -126,5 +126,5 @@ def test_simple_counter(q, s):
 def test_simple_absolute(q, s):
     # raw values sent are i^2 for i in [0, 9], devided by 2 (time interval)
     samples = send_get_data(q, s, 'collectd-squares.pkts')
-    seq = lambda i: (i + 1)**2 / 2.
+    seq = lambda i: (i + 1) ** 2 / 2.
     check_samples(samples, seq, 9, 'test.squares.absolute')
