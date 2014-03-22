@@ -56,7 +56,7 @@ def test_simple_counter_old(q, s):
 def cdtypes(typesdb):
     f = tempfile.NamedTemporaryFile(delete=False)
     filename = f.name
-    f.writelines(typesdb)
+    f.write(typesdb.encode('utf-8'))
     f.close()
 
     def types_dec(func):
