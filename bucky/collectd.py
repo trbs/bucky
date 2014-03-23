@@ -19,7 +19,7 @@ import struct
 import logging
 
 try:
-    import Crypto
+    from Crypto.Hash import SHA256, HMAC
     CRYPTO = True
 except ImportError:
     CRYPTO = False
@@ -310,7 +310,38 @@ class CollectDCrypto(object):
             return data
 
     def parse_signed(self, part_len, data):
-        raise NotImplementedError()
+        if part_len <= 32:
+            # need 32 bytes for mac and then some for username
+            raise ProtocolError("Trancated signed part.")
+        # first 32 bytes is an HMAC-SHA256 tag on the following bytes
+        sig, data = data[:32], data[32:]
+        # username is the remaining bytes in this part
+        uname_len = part_len - 32
+        uname = data[:uname_len]
+        verified = self._check_signed(sig, uname, data)
+        data = data[uname_len:]
+        return data, verified
+
+    def _check_signed(self, sig, uname, data):
+        if not CRYPTO:
+            return False
+        if uname not in self.auth_db:
+            log.info("Recieved signed packet from unknown user '%s'", uname)
+            return False
+        key = self.auth_db[uname]
+        sig2 = HMAC.new(key, msg=data, digestmod=SHA256).digest()
+        if len(sig) != len(sig2):
+            log.info("Bad sig length from user '%s'", uname)
+            return False
+        # constant time comparison
+        diff = 0
+        for x, y in zip(sig, sig2):
+            diff |= ord(x) ^ ord(y)
+        if diff:
+            log.info("Bad signature from user '%s'", uname)
+            return False
+        log.debug("Good signature from user '%s'", uname)
+        return True
 
     def parse_encrypted(self, part_len, data):
         raise NotImplementedError()
