@@ -300,6 +300,8 @@ class CollectDServer(UDPServer):
         try:
             for sample in self.parser.parse(data):
                 self.last_sample = sample
+                stype = sample["type"]
+                vname = sample["value_name"]
                 sample = self.converter.convert(sample)
                 if sample is None:
                     continue
@@ -307,6 +309,7 @@ class CollectDServer(UDPServer):
                 if not name.strip():
                     continue
                 val = self.calculate(host, name, vtype, val, time)
+                val = self.check_range(stype, vname, val)
                 if val is not None:
                     self.queue.put((host, name, val, time))
         except ProtocolError as e:
@@ -315,10 +318,28 @@ class CollectDServer(UDPServer):
                 log.info("Last sample: %s", self.last_sample)
         return True
 
+    def check_range(self, stype, vname, val):
+        if val is None:
+            return
+        try:
+            vmin, vmax = self.parser.types.type_ranges[stype][vname]
+        except KeyError:
+            log.error("Couldn't find vmin, vmax in CollectDTypes")
+            return val
+        if vmin is not None and val < vmin:
+            log.debug("Invalid value %s (<%s) for %s", val, vmin, vname)
+            log.debug("Last sample: %s", self.last_sample)
+            return
+        if vmax is not None and val > vmax:
+            log.debug("Invalid value %s (>%s) for %s", val, vmax, vname)
+            log.debug("Last sample: %s", self.last_sample)
+            return
+        return val
+
     def calculate(self, host, name, vtype, val, time):
         handlers = {
             0: self._calc_counter,  # counter
-            1: lambda _host, _name, v, _time: v,         # gauge
+            1: lambda _host, _name, v, _time: v,  # gauge
             2: self._calc_derive,  # derive
             3: self._calc_absolute  # absolute
         }
