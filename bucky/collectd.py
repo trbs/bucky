@@ -18,6 +18,12 @@ import copy
 import struct
 import logging
 
+try:
+    import Crypto
+    CRYPTO = True
+except ImportError:
+    CRYPTO = False
+
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
 
@@ -234,6 +240,82 @@ class CollectDParser(object):
         return _parser
 
 
+class CollectDCrypto(object):
+    def __init__(self, cfg):
+        sec_level = cfg.collectd_security_level
+        if sec_level in ("sign", "SIGN", "Sign", 1):
+            self.sec_level = 1
+        elif sec_level in ("encrypt", "ENCRYPT", "Encrypt", 2):
+            self.sec_level = 2
+        else:
+            self.sec_level = 0
+        self.auth_file = cfg.collectd_auth_file
+        if not CRYPTO and (self.sec_level or self.auth_file):
+            raise ConfigError("To configure cryptographic settings for "
+                              "collectd you need to install pycrypto")
+        self.auth_db = {}
+        if self.auth_file:
+            self.load_auth_file()
+        if self.sec_level:
+            if not self.auth_file:
+                raise ConfigError("Collectd security level configured but no "
+                                  "auth file specified in configuration")
+            if not self.auth_db:
+                raise ConfigError("Collectd security level configured but no "
+                                  "user/passwd entries loaded from auth file")
+
+    def load_auth_file(self):
+        try:
+            f = open(self.auth_file)
+        except IOError as exc:
+            raise ConfigError("Unable to load collectd's auth file: %s", exc)
+        for line in f:
+            line = line.strip()
+            if not line or line[0] == "#":
+                continue
+            user, passwd = line.split(":", 1)
+            user = user.strip()
+            passwd = passwd.strip()
+            if not user or not passwd:
+                log.warning("Found line with missing user or password")
+                continue
+            if user in self.auth_db:
+                log.warning("Found multiple entries for single user")
+            self.auth_db[user] = passwd
+        f.close()
+        log.info("Loaded collectd's auth file from %s", self.auth_file)
+
+    def parse(self, data):
+        if len(data) < 4:
+            raise ProtocolError("Truncated header.")
+        part_type, part_len = struct.unpack("!HH", data[:4])
+        # not signed or encrypted packet
+        if part_type not in (0x0200, 0x0210):
+            if not self.sec_level:
+                return data
+            else:
+                log.info("Dropping packet because of lower security level")
+                return
+        data = data[4:]
+        part_len -= 4  # includes four header bytes we just parsed
+        if len(data) < part_len:
+            raise ProtocolError("Truncated value.")
+
+        if part_type == 0x0210:
+            return self.parse_encrypted(part_len, data)
+        elif part_type == 0x0200:
+            data, verified = self.parse_signed(part_len, data)
+            if self.sec_level == 2 or self.sec_level and not verified:
+                return
+            return data
+
+    def parse_signed(self, part_len, data):
+        raise NotImplementedError()
+
+    def parse_encrypted(self, part_len, data):
+        raise NotImplementedError()
+
+
 class CollectDConverter(object):
     def __init__(self, cfg):
         self.converters = dict(DEFAULT_CONVERTERS)
@@ -291,6 +373,7 @@ class CollectDServer(UDPServer):
     def __init__(self, queue, cfg):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
+        self.crypto = CollectDCrypto(cfg)
         self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
         self.prev_samples = {}
@@ -298,6 +381,9 @@ class CollectDServer(UDPServer):
 
     def handle(self, data, addr):
         try:
+            data = self.crypto.parse(data)
+            if not data:
+                return True
             for sample in self.parser.parse(data):
                 self.last_sample = sample
                 stype = sample["type"]
