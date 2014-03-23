@@ -121,6 +121,26 @@ def test_simple_counter(q, s):
     check_samples(samples, seq, 9, 'test.squares.counter')
 
 
+@cdtypes("counters a:COUNTER:0:U, b:COUNTER:0:U\n")
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_counter_wrap_32(q, s):
+    # counter growing 1024 per measurement, 2 seconds interval, expecting
+    # 9 measurements with value 512
+    samples = send_get_data(q, s, 'collectd-counter-wraps.pkts')
+    seq = lambda i: 512
+    check_samples(samples, seq, 9, 'test.counter-wraps.counters.a')
+
+
+@cdtypes("counters a:COUNTER:0:U, b:COUNTER:0:U\n")
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_counter_wrap_64(q, s):
+    # counter growing 1024 per measurement, 2 seconds interval, expecting
+    # 9 measurements with value 512
+    samples = send_get_data(q, s, 'collectd-counter-wraps.pkts')
+    seq = lambda i: 512
+    check_samples(samples, seq, 9, 'test.counter-wraps.counters.b')
+
+
 @cdtypes(TYPESDB)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_absolute(q, s):

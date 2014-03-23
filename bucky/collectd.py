@@ -350,23 +350,28 @@ class CollectDServer(UDPServer):
         return handlers[vtype](host, name, val, time)
 
     def _calc_counter(self, host, name, val, time):
-        # I need to figure out how to handle wrapping
-        # Read: http://oss.oetiker.ch/rrdtool/tut/rrdtutorial.en.html
-        # and then fix later
         key = (host, name)
         if key not in self.prev_samples:
             self.prev_samples[key] = (val, time)
             return
         pval, ptime = self.prev_samples[key]
         self.prev_samples[key] = (val, time)
-        if val < pval or time <= ptime:
+        if time <= ptime:
             log.error("Invalid COUNTER update for: %s:%s" % key)
             log.info("Last sample: %s", self.last_sample)
             return
+        if val < pval:
+            # this is supposed to handle counter wrap around
+            # see https://collectd.org/wiki/index.php/Data_source
+            log.debug("COUNTER wrap-around for: %s:%s (%s -> %s)",
+                      host, name, pval, val)
+            if pval < 0x100000000:
+                val += 0x100000000  # 2**32
+            else:
+                val += 0x10000000000000000  # 2**64
         return float(val - pval) / (time - ptime)
 
     def _calc_derive(self, host, name, val, time):
-        # Like counter, I need to figure out wrapping
         key = (host, name)
         if key not in self.prev_samples:
             self.prev_samples[key] = (val, time)
