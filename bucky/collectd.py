@@ -19,7 +19,8 @@ import struct
 import logging
 
 try:
-    from Crypto.Hash import SHA256, HMAC
+    from Crypto.Cipher import AES
+    from Crypto.Hash import SHA, SHA256, HMAC
     CRYPTO = True
 except ImportError:
     CRYPTO = False
@@ -300,7 +301,6 @@ class CollectDCrypto(object):
         part_len -= 4  # includes four header bytes we just parsed
         if len(data) < part_len:
             raise ProtocolError("Truncated value.")
-
         if part_type == 0x0210:
             return self.parse_encrypted(part_len, data)
         elif part_type == 0x0200:
@@ -344,7 +344,33 @@ class CollectDCrypto(object):
         return True
 
     def parse_encrypted(self, part_len, data):
-        raise NotImplementedError()
+        if not CRYPTO:
+            log.warning("Recieved encrypted packet but PyCrypto not installed")
+            return
+        if part_len <= 38:
+            # need 2B for uname_len, 16B iv, 20B hash and then some for uname
+            raise ProtocolError("Trancated encrypted part.")
+        uname_len = struct.unpack("!H", data[:2])[0]
+        data = data[2:]
+        uname, data = data[:uname_len], data[uname_len:]
+        if uname not in self.auth_db:
+            log.info("Recieved encrypted packet from unknown user '%s'", uname)
+            return
+        iv, data = data[:16], data[16:]
+        password = self.auth_db[uname]
+        key = SHA256.new(password).digest()
+        # pad data
+        pad_bytes = 16 - (len(data) % 16)
+        data += "\0" * pad_bytes
+        data = AES.new(key, IV=iv, mode=AES.MODE_OFB).decrypt(data)
+        data = data[:-pad_bytes]
+        # verify checksum
+        tag, data = data[:20], data[20:]
+        tag2 = SHA.new(data).digest()
+        if tag2 != tag:
+            log.info("Invalid checksum on encrypted packet for '%s'", uname)
+            return
+        return data
 
 
 class CollectDConverter(object):
