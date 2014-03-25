@@ -208,3 +208,14 @@ def test_net_auth(q, s):
     samples = send_get_data(q, s, 'collectd-squares-signed.pkts')
     seq = lambda i: (i ** 2)
     check_samples(samples, seq, 10, 'test.squares.gauge')
+
+
+@t.set_cfg("collectd_security_level", 2)
+@authfile("alice: 12345678")
+@cdtypes(TYPESDB)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_net_enc(q, s):
+    # raw values sent are i^2 for i in [0, 9]
+    samples = send_get_data(q, s, 'collectd-squares-encrypted.pkts')
+    seq = lambda i: (i ** 2)
+    check_samples(samples, seq, 10, 'test.squares.gauge')
