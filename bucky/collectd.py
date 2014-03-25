@@ -18,9 +18,12 @@ import copy
 import struct
 import logging
 
+import hmac
+from hashlib import sha1
+from hashlib import sha256
 try:
+    # PyCrypto is required for encrypted communication
     from Crypto.Cipher import AES
-    from Crypto.Hash import SHA, SHA256, HMAC
     CRYPTO = True
 except ImportError:
     CRYPTO = False
@@ -251,9 +254,9 @@ class CollectDCrypto(object):
         else:
             self.sec_level = 0
         self.auth_file = cfg.collectd_auth_file
-        if not CRYPTO and (self.sec_level or self.auth_file):
-            raise ConfigError("To configure cryptographic settings for "
-                              "collectd you need to install pycrypto")
+        if self.sec_level == 2 and not CRYPTO:
+            raise ConfigError("To configure encryption for collectd you need "
+                              "to install PyCrypto")
         self.auth_db = {}
         if self.auth_file:
             self.load_auth_file()
@@ -323,13 +326,11 @@ class CollectDCrypto(object):
         return data, verified
 
     def _check_signed(self, sig, uname, data):
-        if not CRYPTO:
-            return False
         if uname not in self.auth_db:
             log.info("Recieved signed packet from unknown user '%s'", uname)
             return False
         key = self.auth_db[uname]
-        sig2 = HMAC.new(key, msg=data, digestmod=SHA256).digest()
+        sig2 = hmac.new(key, msg=data, digestmod=sha256).digest()
         if len(sig) != len(sig2):
             log.info("Bad sig length from user '%s'", uname)
             return False
@@ -344,6 +345,7 @@ class CollectDCrypto(object):
         return True
 
     def parse_encrypted(self, part_len, data):
+        # This function requires PyCrypto
         if not CRYPTO:
             log.warning("Recieved encrypted packet but PyCrypto not installed")
             return
@@ -358,7 +360,7 @@ class CollectDCrypto(object):
             return
         iv, data = data[:16], data[16:]
         password = self.auth_db[uname]
-        key = SHA256.new(password).digest()
+        key = sha256(password).digest()
         # pad data
         pad_bytes = 16 - (len(data) % 16)
         data += "\0" * pad_bytes
@@ -366,7 +368,7 @@ class CollectDCrypto(object):
         data = data[:-pad_bytes]
         # verify checksum
         tag, data = data[:20], data[20:]
-        tag2 = SHA.new(data).digest()
+        tag2 = sha1(data).digest()
         if tag2 != tag:
             log.info("Invalid checksum on encrypted packet for '%s'", uname)
             return
