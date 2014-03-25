@@ -53,15 +53,26 @@ def test_simple_counter_old(q, s):
             break
 
 
-def cdtypes(typesdb):
+def temp_file(data):
     f = tempfile.NamedTemporaryFile(delete=False)
     filename = f.name
-    f.write(typesdb.encode('utf-8'))
+    f.write(data.encode('utf-8'))
     f.close()
+    return filename
 
+
+def cdtypes(typesdb):
     def types_dec(func):
+        filename = temp_file(typesdb)
         return t.set_cfg("collectd_types", [filename])(func)
     return types_dec
+
+
+def authfile(data):
+    def authfile_dec(func):
+        filename = temp_file(data)
+        return t.set_cfg("collectd_auth_file", filename)(func)
+    return authfile_dec
 
 
 def send_get_data(q, s, datafile):
@@ -186,3 +197,14 @@ def test_simple_absolute_bounds(q, s):
     samples = send_get_data(q, s, 'collectd-squares.pkts')
     seq = lambda i: (i + 4) ** 2 / 2.
     check_samples(samples, seq, 5, 'test.squares.absolute')
+
+
+@t.set_cfg("collectd_security_level", 1)
+@authfile("alice: 12345678")
+@cdtypes(TYPESDB)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_net_auth(q, s):
+    # raw values sent are i^2 for i in [0, 9]
+    samples = send_get_data(q, s, 'collectd-squares-signed.pkts')
+    seq = lambda i: (i ** 2)
+    check_samples(samples, seq, 10, 'test.squares.gauge')
