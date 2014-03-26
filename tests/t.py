@@ -35,7 +35,7 @@ class set_cfg(object):
             curr = getattr(cfg, self.name)
             try:
                 setattr(cfg, self.name, self.value)
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
             finally:
                 setattr(cfg, self.name, curr)
         return run
