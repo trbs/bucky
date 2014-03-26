@@ -272,7 +272,7 @@ class CollectDCrypto(object):
         try:
             f = open(self.auth_file)
         except IOError as exc:
-            raise ConfigError("Unable to load collectd's auth file: %s", exc)
+            raise ConfigError("Unable to load collectd's auth file: %r", exc)
         for line in f:
             line = line.strip()
             if not line or line[0] == "#":
@@ -293,88 +293,70 @@ class CollectDCrypto(object):
         if len(data) < 4:
             raise ProtocolError("Truncated header.")
         part_type, part_len = struct.unpack("!HH", data[:4])
-        # not signed or encrypted packet
-        if part_type not in (0x0200, 0x0210):
-            if not self.sec_level:
-                return data
-            else:
-                log.info("Dropping packet because of lower security level")
-                return
-        data = data[4:]
-        part_len -= 4  # includes four header bytes we just parsed
-        if len(data) < part_len:
-            raise ProtocolError("Truncated value.")
-        if part_type == 0x0210:
-            return self.parse_encrypted(part_len, data)
-        elif part_type == 0x0200:
-            data, verified = self.parse_signed(part_len, data)
-            if self.sec_level == 2 or self.sec_level and not verified:
-                return
+        sec_level = {0x0200: 1, 0x0210: 2}.get(part_type, 0)
+        if sec_level < self.sec_level:
+            raise ProtocolError("Packet has lower security level than allowed")
+        if not sec_level:
             return data
+        data = data[4:]
+        part_len -= 4
+        if len(data) < part_len:
+            raise ProtocolError("Truncated part payload.")
+        if sec_level == 1:
+            return self.parse_signed(part_len, data)
+        if sec_level == 2:
+            return self.parse_encrypted(part_len, data)
 
     def parse_signed(self, part_len, data):
         if part_len <= 32:
-            # need 32 bytes for mac and then some for username
-            raise ProtocolError("Trancated signed part.")
-        # first 32 bytes is an HMAC-SHA256 tag on the following bytes
+            raise ProtocolError("Truncated signed part.")
         sig, data = data[:32], data[32:]
-        # username is the remaining bytes in this part
         uname_len = part_len - 32
-        uname = data[:uname_len].decode()
-        verified = self._check_signed(sig, uname, data)
+        if self.sec_level:
+            uname = data[:uname_len].decode()
+            if uname not in self.auth_db:
+                raise ProtocolError("Signed packet, unknown user '%s'" % uname)
+            password = self.auth_db[uname].encode()
+            sig2 = hmac.new(password, msg=data, digestmod=sha256).digest()
+            if not self._hashes_match(sig, sig2):
+                raise ProtocolError("Bad signature from user '%s'" % uname)
         data = data[uname_len:]
-        return data, verified
-
-    def _check_signed(self, sig, uname, data):
-        if uname not in self.auth_db:
-            log.info("Recieved signed packet from unknown user '%s'", uname)
-            return False
-        key = self.auth_db[uname].encode()
-        sig2 = hmac.new(key, msg=data, digestmod=sha256).digest()
-        if len(sig) != len(sig2):
-            log.info("Bad sig length from user '%s'", uname)
-            return False
-        # constant time comparison
-        diff = 0
-        if six.PY2:
-            sig = bytearray(sig)
-            sig2 = bytearray(sig2)
-        for x, y in zip(sig, sig2):
-            diff |= x ^ y
-        if diff:
-            log.info("Bad signature from user '%s'", uname)
-            return False
-        log.debug("Good signature from user '%s'", uname)
-        return True
+        return data
 
     def parse_encrypted(self, part_len, data):
-        # This function requires PyCrypto
         if not CRYPTO:
-            log.warning("Recieved encrypted packet but PyCrypto not installed")
+            log.warning("Received encrypted packet but PyCrypto not installed")
             return
         if part_len <= 38:
-            # need 2B for uname_len, 16B iv, 20B hash and then some for uname
             raise ProtocolError("Trancated encrypted part.")
         uname_len, data = struct.unpack("!H", data[:2])[0], data[2:]
         uname, data = data[:uname_len].decode(), data[uname_len:]
         if uname not in self.auth_db:
-            log.info("Recieved encrypted packet from unknown user '%s'", uname)
-            return
+            raise ProtocolError("Couldn't decrypt, unknown user '%s'" % uname)
         iv, data = data[:16], data[16:]
-        password = self.auth_db[uname]
-        key = sha256(password.encode()).digest()
-        # pad data
+        password = self.auth_db[uname].encode()
+        key = sha256(password).digest()
         pad_bytes = 16 - (len(data) % 16)
         data += b'\0' * pad_bytes
         data = AES.new(key, IV=iv, mode=AES.MODE_OFB).decrypt(data)
         data = data[:-pad_bytes]
-        # verify checksum
         tag, data = data[:20], data[20:]
         tag2 = sha1(data).digest()
-        if tag2 != tag:
-            log.info("Invalid checksum on encrypted packet for '%s'", uname)
-            return
+        if not self._hashes_match(tag, tag2):
+            raise ProtocolError("Bad hash on encrypted pkt for '%s'" % uname)
         return data
+
+    def _hashes_match(self, a, b):
+        """Constant time comparison of bytes for py3, strings for py2"""
+        if len(a) != len(b):
+            return False
+        diff = 0
+        if six.PY2:
+            a = bytearray(a)
+            b = bytearray(b)
+        for x, y in zip(a, b):
+            diff |= x ^ y
+        return not diff
 
 
 class CollectDConverter(object):
