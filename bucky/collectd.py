@@ -320,7 +320,7 @@ class CollectDCrypto(object):
         sig, data = data[:32], data[32:]
         # username is the remaining bytes in this part
         uname_len = part_len - 32
-        uname = data[:uname_len]
+        uname = data[:uname_len].decode()
         verified = self._check_signed(sig, uname, data)
         data = data[uname_len:]
         return data, verified
@@ -329,15 +329,18 @@ class CollectDCrypto(object):
         if uname not in self.auth_db:
             log.info("Recieved signed packet from unknown user '%s'", uname)
             return False
-        key = self.auth_db[uname]
+        key = self.auth_db[uname].encode()
         sig2 = hmac.new(key, msg=data, digestmod=sha256).digest()
         if len(sig) != len(sig2):
             log.info("Bad sig length from user '%s'", uname)
             return False
         # constant time comparison
         diff = 0
+        if six.PY2:
+            sig = bytearray(sig)
+            sig2 = bytearray(sig2)
         for x, y in zip(sig, sig2):
-            diff |= ord(x) ^ ord(y)
+            diff |= x ^ y
         if diff:
             log.info("Bad signature from user '%s'", uname)
             return False
@@ -352,18 +355,17 @@ class CollectDCrypto(object):
         if part_len <= 38:
             # need 2B for uname_len, 16B iv, 20B hash and then some for uname
             raise ProtocolError("Trancated encrypted part.")
-        uname_len = struct.unpack("!H", data[:2])[0]
-        data = data[2:]
-        uname, data = data[:uname_len], data[uname_len:]
+        uname_len, data = struct.unpack("!H", data[:2])[0], data[2:]
+        uname, data = data[:uname_len].decode(), data[uname_len:]
         if uname not in self.auth_db:
             log.info("Recieved encrypted packet from unknown user '%s'", uname)
             return
         iv, data = data[:16], data[16:]
         password = self.auth_db[uname]
-        key = sha256(password).digest()
+        key = sha256(password.encode()).digest()
         # pad data
         pad_bytes = 16 - (len(data) % 16)
-        data += "\0" * pad_bytes
+        data += b'\0' * pad_bytes
         data = AES.new(key, IV=iv, mode=AES.MODE_OFB).decrypt(data)
         data = data[:-pad_bytes]
         # verify checksum
