@@ -15,6 +15,7 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
+import time
 import struct
 import tempfile
 try:
@@ -44,11 +45,12 @@ def test_pkt_reader():
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter_old(q, s):
     s.send(next(pkts("collectd.pkts")))
-    s = q.get()
+    time.sleep(.1)
+    s = q.get(True, .1)
     while s:
         print(s)
         try:
-            s = q.get(False)
+            s = q.get(True, .1)
         except queue.Empty:
             break
 
@@ -78,6 +80,7 @@ def authfile(data):
 def send_get_data(q, s, datafile):
     for pkt in pkts(datafile):
         s.send(pkt)
+    time.sleep(.1)
     while True:
         try:
             sample = q.get(True, .1)
