@@ -17,7 +17,6 @@
 import os
 import time
 import struct
-import tempfile
 try:
     import queue
 except ImportError:
@@ -57,24 +56,16 @@ def test_simple_counter_old(q, s):
             break
 
 
-def temp_file(data):
-    f = tempfile.NamedTemporaryFile(delete=False)
-    filename = f.name
-    f.write(data.encode('utf-8'))
-    f.close()
-    return filename
-
-
 def cdtypes(typesdb):
     def types_dec(func):
-        filename = temp_file(typesdb)
+        filename = t.temp_file(typesdb)
         return t.set_cfg("collectd_types", [filename])(func)
     return types_dec
 
 
 def authfile(data):
     def authfile_dec(func):
-        filename = temp_file(data)
+        filename = t.temp_file(data)
         return t.set_cfg("collectd_auth_file", filename)(func)
     return authfile_dec
 
