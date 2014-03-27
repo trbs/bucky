@@ -162,7 +162,7 @@ class StatsDHandler(threading.Thread):
         # In the interest of compatibility, I'll maintain
         # the behavior.
         for sample in bits:
-            if not "|" in sample:
+            if "|" not in sample:
                 self.bad_line()
                 continue
             fields = sample.split("|")
