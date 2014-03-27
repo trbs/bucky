@@ -18,6 +18,9 @@ collectd_types = []
 collectd_converters = []
 collectd_use_entry_points = True
 
+collectd_security_level = 0
+collectd_auth_file = None
+
 statsd_ip = "127.0.0.1"
 statsd_port = 8125
 statsd_enabled = True

@@ -166,7 +166,7 @@ def drop_privileges(user, group):
         gid = grp.getgrnam(group).gr_gid
 
     username = pwd.getpwuid(uid).pw_name
-    #groupname = grp.getgrgid(gid).gr_name
+    # groupname = grp.getgrgid(gid).gr_name
     groups = [g for g in grp.getgrall() if username in g.gr_mem]
 
     os.setgroups(groups)

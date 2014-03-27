@@ -19,6 +19,7 @@
 import time
 import multiprocessing
 from functools import wraps
+import tempfile
 
 import bucky.cfg as cfg
 cfg.debug = True
@@ -35,7 +36,7 @@ class set_cfg(object):
             curr = getattr(cfg, self.name)
             try:
                 setattr(cfg, self.name, self.value)
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
             finally:
                 setattr(cfg, self.name, curr)
         return run
@@ -117,3 +118,10 @@ def raises(exctype, func, *args, **kwargs):
     func_name = getattr(func, "__name__", "<builtin_function>")
     raise AssertionError("Function %s did not raise %s" % (func_name, exctype.__name__))
 
+
+def temp_file(data):
+    f = tempfile.NamedTemporaryFile(delete=False)
+    filename = f.name
+    f.write(data.encode('utf-8'))
+    f.close()
+    return filename

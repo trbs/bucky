@@ -15,8 +15,8 @@
 # Copyright 2011 Cloudant, Inc.
 
 import os
+import time
 import struct
-import tempfile
 try:
     import queue
 except ImportError:
@@ -24,6 +24,8 @@ except ImportError:
 
 import t
 import bucky.collectd
+from bucky import cfg
+from bucky.errors import ProtocolError, ConfigError
 
 
 def pkts(rfname):
@@ -44,29 +46,34 @@ def test_pkt_reader():
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter_old(q, s):
     s.send(next(pkts("collectd.pkts")))
-    s = q.get()
+    time.sleep(.1)
+    s = q.get(True, .1)
     while s:
         print(s)
         try:
-            s = q.get(False)
+            s = q.get(True, .1)
         except queue.Empty:
             break
 
 
 def cdtypes(typesdb):
-    f = tempfile.NamedTemporaryFile(delete=False)
-    filename = f.name
-    f.write(typesdb.encode('utf-8'))
-    f.close()
-
     def types_dec(func):
+        filename = t.temp_file(typesdb)
         return t.set_cfg("collectd_types", [filename])(func)
     return types_dec
+
+
+def authfile(data):
+    def authfile_dec(func):
+        filename = t.temp_file(data)
+        return t.set_cfg("collectd_auth_file", filename)(func)
+    return authfile_dec
 
 
 def send_get_data(q, s, datafile):
     for pkt in pkts(datafile):
         s.send(pkt)
+    time.sleep(.1)
     while True:
         try:
             sample = q.get(True, .1)
@@ -186,3 +193,93 @@ def test_simple_absolute_bounds(q, s):
     samples = send_get_data(q, s, 'collectd-squares.pkts')
     seq = lambda i: (i + 4) ** 2 / 2.
     check_samples(samples, seq, 5, 'test.squares.absolute')
+
+
+@t.set_cfg("collectd_security_level", 1)
+@authfile("alice: 12345678")
+@cdtypes(TYPESDB)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_net_auth(q, s):
+    samples = send_get_data(q, s, 'collectd-squares-signed.pkts')
+    seq = lambda i: (i ** 2)
+    check_samples(samples, seq, 10, 'test.squares.gauge')
+
+
+@t.set_cfg("collectd_security_level", 2)
+@authfile("alice: 12345678")
+@cdtypes(TYPESDB)
+@t.udp_srv(bucky.collectd.CollectDServer)
+def test_net_enc(q, s):
+    samples = send_get_data(q, s, 'collectd-squares-encrypted.pkts')
+    seq = lambda i: (i ** 2)
+    check_samples(samples, seq, 10, 'test.squares.gauge')
+
+
+def cfg_crypto(sec_level, auth_file):
+    sec_level_dec = t.set_cfg('collectd_security_level', sec_level)
+    auth_file_dec = authfile(auth_file)
+    return sec_level_dec(auth_file_dec(bucky.collectd.CollectDCrypto))(cfg)
+
+
+def assert_crypto(state, testfile, sec_level, auth_file):
+    crypto = cfg_crypto(sec_level, auth_file)
+    i = 0
+    if state:
+        for data in pkts(testfile):
+            data = crypto.parse(data)
+            t.eq(bool(data), True)
+            i += 1
+    else:
+        for data in pkts(testfile):
+            t.raises(ProtocolError, crypto.parse, data)
+            i += 1
+    t.eq(i, 2)
+
+
+def test_crypto_sec_level_0():
+    assert_crypto(True, 'collectd-squares.pkts', 0, "")
+    assert_crypto(True, 'collectd-squares-signed.pkts', 0, "")
+    assert_crypto(False, 'collectd-squares-encrypted.pkts', 0, "")
+    assert_crypto(True, 'collectd-squares.pkts', 0, "alice: 12345678")
+    assert_crypto(True, 'collectd-squares-signed.pkts', 0, "alice: 12345678")
+    assert_crypto(True, 'collectd-squares-encrypted.pkts', 0, "alice: 12345678")
+
+
+def test_crypto_sec_level_1():
+    t.raises(ConfigError, cfg_crypto, 1, "")
+    assert_crypto(False, 'collectd-squares.pkts', 1, "bob: 123")
+    assert_crypto(False, 'collectd-squares-signed.pkts', 1, "bob: 123")
+    assert_crypto(False, 'collectd-squares-encrypted.pkts', 1, "bob: 123")
+    assert_crypto(False, 'collectd-squares.pkts', 1, "alice: 12345678")
+    assert_crypto(True, 'collectd-squares-signed.pkts', 1, "alice: 12345678")
+    assert_crypto(True, 'collectd-squares-encrypted.pkts', 1, "alice: 12345678")
+
+
+def test_crypto_sec_level_2():
+    t.raises(ConfigError, cfg_crypto, 2, "")
+    assert_crypto(False, 'collectd-squares.pkts', 2, "bob: 123")
+    assert_crypto(False, 'collectd-squares-signed.pkts', 2, "bob: 123")
+    assert_crypto(False, 'collectd-squares-encrypted.pkts', 2, "bob: 123")
+    assert_crypto(False, 'collectd-squares.pkts', 2, "alice: 12345678")
+    assert_crypto(False, 'collectd-squares-signed.pkts', 2, "alice: 12345678")
+    assert_crypto(True, 'collectd-squares-encrypted.pkts', 2, "alice: 12345678")
+
+
+def test_crypto_auth_load():
+    auth_file = "alice: 123\nbob:456  \n\n  charlie  :  789"
+    crypto = cfg_crypto(2, auth_file)
+    db = {"alice": "123", "bob": "456", "charlie": "789"}
+    t.eq(crypto.auth_db, db)
+
+
+def test_crypto_auth_reload():
+    crypto = cfg_crypto(1, "bob: 123\n")
+    signed_pkt = next(pkts('collectd-squares-signed.pkts'))
+    enc_pkt = next(pkts('collectd-squares-encrypted.pkts'))
+    t.raises(ProtocolError, crypto.parse, signed_pkt)
+    t.raises(ProtocolError, crypto.parse, enc_pkt)
+    with open(crypto.auth_file, "a") as f:
+        f.write("alice: 12345678\n")
+    time.sleep(.1)
+    t.eq(bool(crypto.parse(signed_pkt)), True)
+    t.eq(bool(crypto.parse(enc_pkt)), True)

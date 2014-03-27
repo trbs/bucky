@@ -27,6 +27,9 @@ After installing, you can run Bucky like::
 
     $ bucky
 
+Bucky will try to install PyCrypto which requires the python-dev
+package to be installed.
+
 By default, Bucky will open a CollectD UDP socket on 127.0.0.1:25826,
 a StatsD socket on 127.0.0.1:8125 as well as attempt to connect to a
 local Graphite (Carbon) daemon on 127.0.0.1:2003.
@@ -152,6 +155,12 @@ config file::
     # Whether to load converters from entry points. The entry point
     # used to define converters is 'bucky.collectd.converters'.
     collectd_use_entry_points = True
+
+    # Cryptographic settings for collectd. Security level 1 requires
+    # signed packets, level 2 requires encrypted communication.
+    # Auth file should contain lines in the form 'user: password'
+    collectd_security_level = 0
+    collectd_auth_file = None
 
     # Basic statsd configuration
     statsd_ip = "127.0.0.1"
