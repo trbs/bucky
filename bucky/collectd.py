@@ -21,12 +21,7 @@ import logging
 import hmac
 from hashlib import sha1
 from hashlib import sha256
-try:
-    # PyCrypto is required for encrypted communication
-    from Crypto.Cipher import AES
-    CRYPTO = True
-except ImportError:
-    CRYPTO = False
+from Crypto.Cipher import AES
 
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
@@ -255,9 +250,6 @@ class CollectDCrypto(object):
         else:
             self.sec_level = 0
         self.auth_file = cfg.collectd_auth_file
-        if self.sec_level == 2 and not CRYPTO:
-            raise ConfigError("To configure encryption for collectd you need "
-                              "to install PyCrypto")
         self.auth_db = {}
         self.cfg_mon = None
         if self.auth_file:
@@ -332,9 +324,6 @@ class CollectDCrypto(object):
         return data
 
     def parse_encrypted(self, part_len, data):
-        if not CRYPTO:
-            log.warning("Received encrypted packet but PyCrypto not installed")
-            return
         if part_len != len(data):
             raise ProtocolError("Enc pkt size disaggrees with header.")
         if len(data) <= 38:
