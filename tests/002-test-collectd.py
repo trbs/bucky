@@ -263,3 +263,23 @@ def test_crypto_sec_level_2():
     assert_crypto(False, 'collectd-squares.pkts', 2, "alice: 12345678")
     assert_crypto(False, 'collectd-squares-signed.pkts', 2, "alice: 12345678")
     assert_crypto(True, 'collectd-squares-encrypted.pkts', 2, "alice: 12345678")
+
+
+def test_crypto_auth_load():
+    auth_file = "alice: 123\nbob:456  \n\n  charlie  :  789"
+    crypto = cfg_crypto(2, auth_file)
+    db = {"alice": "123", "bob": "456", "charlie": "789"}
+    t.eq(crypto.auth_db, db)
+
+
+def test_crypto_auth_reload():
+    crypto = cfg_crypto(1, "bob: 123\n")
+    signed_pkt = next(pkts('collectd-squares-signed.pkts'))
+    enc_pkt = next(pkts('collectd-squares-encrypted.pkts'))
+    t.raises(ProtocolError, crypto.parse, signed_pkt)
+    t.raises(ProtocolError, crypto.parse, enc_pkt)
+    with open(crypto.auth_file, "a") as f:
+        f.write("alice: 12345678\n".encode())
+    time.sleep(.1)
+    t.eq(bool(crypto.parse(signed_pkt)), True)
+    t.eq(bool(crypto.parse(enc_pkt)), True)
