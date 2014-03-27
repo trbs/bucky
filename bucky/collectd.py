@@ -302,6 +302,8 @@ class CollectDCrypto(object):
             raise ProtocolError("Packet has lower security level than allowed")
         if not sec_level:
             return data
+        if sec_level == 1 and not self.sec_level:
+            return data[part_len:]
         data = data[4:]
         part_len -= 4
         if len(data) < part_len:
@@ -319,14 +321,13 @@ class CollectDCrypto(object):
             raise ProtocolError("Truncated signed part.")
         sig, data = data[:32], data[32:]
         uname_len = part_len - 32
-        if self.sec_level:
-            uname = data[:uname_len].decode()
-            if uname not in self.auth_db:
-                raise ProtocolError("Signed packet, unknown user '%s'" % uname)
-            password = self.auth_db[uname].encode()
-            sig2 = hmac.new(password, msg=data, digestmod=sha256).digest()
-            if not self._hashes_match(sig, sig2):
-                raise ProtocolError("Bad signature from user '%s'" % uname)
+        uname = data[:uname_len].decode()
+        if uname not in self.auth_db:
+            raise ProtocolError("Signed packet, unknown user '%s'" % uname)
+        password = self.auth_db[uname].encode()
+        sig2 = hmac.new(password, msg=data, digestmod=sha256).digest()
+        if not self._hashes_match(sig, sig2):
+            raise ProtocolError("Bad signature from user '%s'" % uname)
         data = data[uname_len:]
         return data
 
@@ -334,9 +335,13 @@ class CollectDCrypto(object):
         if not CRYPTO:
             log.warning("Received encrypted packet but PyCrypto not installed")
             return
-        if part_len <= 38:
-            raise ProtocolError("Trancated encrypted part.")
+        if part_len != len(data):
+            raise ProtocolError("Enc pkt size disaggrees with header.")
+        if len(data) <= 38:
+            raise ProtocolError("Truncated encrypted part.")
         uname_len, data = struct.unpack("!H", data[:2])[0], data[2:]
+        if len(data) <= uname_len + 36:
+            raise ProtocolError("Truncated encrypted part.")
         uname, data = data[:uname_len].decode(), data[uname_len:]
         if uname not in self.auth_db:
             raise ProtocolError("Couldn't decrypt, unknown user '%s'" % uname)
@@ -350,7 +355,7 @@ class CollectDCrypto(object):
         tag, data = data[:20], data[20:]
         tag2 = sha1(data).digest()
         if not self._hashes_match(tag, tag2):
-            raise ProtocolError("Bad hash on encrypted pkt for '%s'" % uname)
+            raise ProtocolError("Bad checksum on enc pkt for '%s'" % uname)
         return data
 
     def _hashes_match(self, a, b):
@@ -432,8 +437,10 @@ class CollectDServer(UDPServer):
     def handle(self, data, addr):
         try:
             data = self.crypto.parse(data)
-            if not data:
-                return True
+        except ProtocolError as e:
+            log.error("Protocol error in CollectDCrypto: %s", e)
+            return True
+        try:
             for sample in self.parser.parse(data):
                 self.last_sample = sample
                 stype = sample["type"]
