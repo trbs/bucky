@@ -30,6 +30,7 @@ except ImportError:
 
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
+from bucky.helpers import FileMonitor
 
 log = logging.getLogger(__name__)
 
@@ -258,8 +259,10 @@ class CollectDCrypto(object):
             raise ConfigError("To configure encryption for collectd you need "
                               "to install PyCrypto")
         self.auth_db = {}
+        self.cfg_mon = None
         if self.auth_file:
             self.load_auth_file()
+            self.cfg_mon = FileMonitor(self.auth_file)
         if self.sec_level:
             if not self.auth_file:
                 raise ConfigError("Collectd security level configured but no "
@@ -273,6 +276,7 @@ class CollectDCrypto(object):
             f = open(self.auth_file)
         except IOError as exc:
             raise ConfigError("Unable to load collectd's auth file: %r", exc)
+        self.auth_db.clear()
         for line in f:
             line = line.strip()
             if not line or line[0] == "#":
@@ -302,6 +306,9 @@ class CollectDCrypto(object):
         part_len -= 4
         if len(data) < part_len:
             raise ProtocolError("Truncated part payload.")
+        if self.cfg_mon is not None and self.cfg_mon.modified():
+            log.info("Collectd authfile modified, reloading")
+            self.load_auth_file()
         if sec_level == 1:
             return self.parse_signed(part_len, data)
         if sec_level == 2:
