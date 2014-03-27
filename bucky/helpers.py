@@ -12,7 +12,7 @@ class SingleFileEventHandler(watchdog.events.FileSystemEventHandler):
         self.flag = flag
 
     def on_modified(self, event):
-        if event.src_path == self.path:
+        if event.src_path == self.path.encode():
             self.flag.value = 1
 
 

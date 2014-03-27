@@ -279,7 +279,7 @@ def test_crypto_auth_reload():
     t.raises(ProtocolError, crypto.parse, signed_pkt)
     t.raises(ProtocolError, crypto.parse, enc_pkt)
     with open(crypto.auth_file, "a") as f:
-        f.write("alice: 12345678\n".encode())
+        f.write("alice: 12345678\n")
     time.sleep(.1)
     t.eq(bool(crypto.parse(signed_pkt)), True)
     t.eq(bool(crypto.parse(enc_pkt)), True)
