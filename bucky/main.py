@@ -277,6 +277,10 @@ class Bucky(object):
                     pipe.send(sample)
             except queue.Empty:
                 pass
+            except IOError as exc:
+                # Probably due to interrupted system call by SIGTERM
+                log.debug("Bucky IOError: %s", exc)
+                pass
             for srv in self.servers:
                 if not srv.is_alive():
                     self.shutdown("Server thread died. Exiting.")
