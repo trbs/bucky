@@ -36,6 +36,7 @@ import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+from bucky.errors import BuckyError
 
 
 log = logging.getLogger(__name__)
@@ -254,17 +255,16 @@ class Bucky(object):
             self.clients.append((instance, send))
 
     def run(self):
-        def shutdown(signum, frame):
-            for server in self.servers:
-                server.close()
-                self.sampleq.put(None)
+        def sigterm_handler(signum, frame):
+            log.info("Received SIGTERM")
+            self.sampleq.put(None)
 
         for server in self.servers:
             server.start()
         for client, pipe in self.clients:
             client.start()
 
-        signal.signal(signal.SIGTERM, shutdown)
+        signal.signal(signal.SIGTERM, sigterm_handler)
 
         while True:
             try:
@@ -273,20 +273,34 @@ class Bucky(object):
                     break
                 for instance, pipe in self.clients:
                     if not instance.is_alive():
-                        log.error("Client process died. Exiting.")
-                        sys.exit(1)
+                        self.shutdown("Client process died. Exiting.")
                     pipe.send(sample)
             except queue.Empty:
                 pass
             for srv in self.servers:
                 if not srv.is_alive():
-                    log.error("Server thread died. Exiting.")
-                    sys.exit(1)
+                    self.shutdown("Server thread died. Exiting.")
+        self.shutdown()
 
-        for child in multiprocessing.active_children():
+    def shutdown(self, err=''):
+        log.info("Shutting down")
+        for server in self.servers:
+            log.info("Stopping server %s", server)
+            server.close()
+            server.join(1)
+        for client, pipe in self.clients:
+            log.info("Stopping client %s", client)
+            pipe.send(None)
+            client.join(1)
+        children = multiprocessing.active_children()
+        for child in children:
+            log.error("Child %s didn't die gracefully, terminating", child)
             child.terminate()
-            child.join()
-        sys.exit()
+            child.join(1)
+        if children and not err:
+            err = "Not all children died gracefully"
+        if err:
+            raise BuckyError(err)
 
 
 def load_config(cfgfile, full_trace=False):
