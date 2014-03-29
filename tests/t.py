@@ -119,6 +119,16 @@ def raises(exctype, func, *args, **kwargs):
     raise AssertionError("Function %s did not raise %s" % (func_name, exctype.__name__))
 
 
+def not_raises(exctype, func, *args, **kwargs):
+    try:
+        ret = func(*args, **kwargs)
+    except exctype as exc:
+        func_name = getattr(func, "__name__", "<builtin_function>")
+        raise AssertionError("Function %s raised %s: %s" % (func_name,
+                                                            exctype.__name__,
+                                                            exc))
+
+
 def temp_file(data):
     f = tempfile.NamedTemporaryFile(delete=False)
     filename = f.name

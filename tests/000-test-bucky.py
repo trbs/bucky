@@ -14,9 +14,23 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+import os
+import threading
+
 import t
+
+from bucky import cfg
+from bucky.main import Bucky
+from bucky.errors import BuckyError
 
 
 def test_version_number():
     from bucky import version_info, __version__
     t.eq(__version__, ".".join(map(str, version_info)))
+
+
+def test_sigterm_handling():
+    alarm_thread = threading.Timer(2, os.kill, (os.getpid(), 15))
+    alarm_thread.start()
+    bucky = Bucky(cfg)
+    t.not_raises(BuckyError, bucky.run)
