@@ -222,61 +222,71 @@ def main():
     if cfg.uid or cfg.gid:
         drop_privileges(cfg.uid, cfg.gid)
 
-    sampleq = multiprocessing.Queue()
+    bucky = Bucky(cfg)
+    bucky.run()
 
-    stypes = []
-    if cfg.metricsd_enabled:
-        stypes.append(metricsd.MetricsDServer)
-    if cfg.collectd_enabled:
-        stypes.append(collectd.CollectDServer)
-    if cfg.statsd_enabled:
-        stypes.append(statsd.StatsDServer)
 
-    servers = []
-    for stype in stypes:
-        servers.append(stype(sampleq, cfg))
-        servers[-1].start()
+class Bucky(object):
+    def __init__(self, cfg):
+        self.sampleq = multiprocessing.Queue()
 
-    if cfg.graphite_pickle_enabled:
-        carbon_client = carbon.PickleClient
-    else:
-        carbon_client = carbon.PlaintextClient
+        stypes = []
+        if cfg.metricsd_enabled:
+            stypes.append(metricsd.MetricsDServer)
+        if cfg.collectd_enabled:
+            stypes.append(collectd.CollectDServer)
+        if cfg.statsd_enabled:
+            stypes.append(statsd.StatsDServer)
 
-    clients = []
-    for client in cfg.custom_clients + [carbon_client]:
-        send, recv = multiprocessing.Pipe()
-        instance = client(cfg, recv)
-        instance.start()
-        clients.append((instance, send))
+        self.servers = []
+        for stype in stypes:
+            self.servers.append(stype(self.sampleq, cfg))
 
-    def shutdown(signum, frame):
-        for server in servers:
-            server.close()
-            sampleq.put(None)
+        if cfg.graphite_pickle_enabled:
+            carbon_client = carbon.PickleClient
+        else:
+            carbon_client = carbon.PlaintextClient
 
-    signal.signal(signal.SIGTERM, shutdown)
+        self.clients = []
+        for client in cfg.custom_clients + [carbon_client]:
+            send, recv = multiprocessing.Pipe()
+            instance = client(cfg, recv)
+            self.clients.append((instance, send))
 
-    while True:
-        try:
-            sample = sampleq.get(True, 1)
-            if not sample:
-                break
-            for instance, pipe in clients:
-                if not instance.is_alive():
-                    log.error("Client process died. Exiting.")
+    def run(self):
+        def shutdown(signum, frame):
+            for server in self.servers:
+                server.close()
+                self.sampleq.put(None)
+
+        for server in self.servers:
+            server.start()
+        for client, pipe in self.clients:
+            client.start()
+
+        signal.signal(signal.SIGTERM, shutdown)
+
+        while True:
+            try:
+                sample = self.sampleq.get(True, 1)
+                if not sample:
+                    break
+                for instance, pipe in self.clients:
+                    if not instance.is_alive():
+                        log.error("Client process died. Exiting.")
+                        sys.exit(1)
+                    pipe.send(sample)
+            except queue.Empty:
+                pass
+            for srv in self.servers:
+                if not srv.is_alive():
+                    log.error("Server thread died. Exiting.")
                     sys.exit(1)
-                pipe.send(sample)
-        except queue.Empty:
-            pass
-        for srv in servers:
-            if not srv.is_alive():
-                log.error("Server thread died. Exiting.")
-                sys.exit(1)
 
-    for child in multiprocessing.active_children():
-        child.terminate()
-        child.join()
-    sys.exit()
+        for child in multiprocessing.active_children():
+            child.terminate()
+            child.join()
+        sys.exit()
 
 
 def load_config(cfgfile, full_trace=False):
