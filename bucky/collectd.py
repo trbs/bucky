@@ -267,7 +267,7 @@ class CollectDCrypto(object):
         try:
             f = open(self.auth_file)
         except IOError as exc:
-            raise ConfigError("Unable to load collectd's auth file: %r", exc)
+            raise ConfigError("Unable to load collectd's auth file: %r" % exc)
         self.auth_db.clear()
         for line in f:
             line = line.strip()
