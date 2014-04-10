@@ -280,7 +280,7 @@ class Bucky(object):
             except IOError as exc:
                 # Probably due to interrupted system call by SIGTERM
                 log.debug("Bucky IOError: %s", exc)
-                pass
+                continue
             for srv in self.servers:
                 if not srv.is_alive():
                     self.shutdown("Server thread died. Exiting.")

@@ -33,7 +33,7 @@ class Client(multiprocessing.Process):
         setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             sample = self.pipe.recv()
-            if not sample:
+            if sample is None:
                 break
             self.send(*sample)
 
