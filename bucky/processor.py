@@ -44,7 +44,7 @@ class Processor(multiprocessing.Process):
                     self.out_queue.put(sample)
 
     def process(self, host, name, val, time):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class CustomProcessor(Processor):
