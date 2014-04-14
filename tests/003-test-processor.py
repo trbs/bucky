@@ -20,16 +20,18 @@ def processor(func):
         outq = multiprocessing.Queue()
         proc = bucky.processor.CustomProcessor(inq, outq, cfg)
         proc.start()
-        func(inq, outq, proc)
-        inq.put(None)
-        dead = False
-        for i in range(5):
-            if not proc.is_alive():
-                dead = True
-                break
-            time.sleep(0.1)
-        if not dead:
-            proc.terminate()
+        try:
+            func(inq, outq, proc)
+        finally:
+            inq.put(None)
+            dead = False
+            for i in range(5):
+                if not proc.is_alive():
+                    dead = True
+                    break
+                time.sleep(0.1)
+            if not dead:
+                proc.terminate()
     return run
 
 
@@ -49,7 +51,7 @@ def send_get_data(indata, inq, outq):
         inq.put(sample)
     while True:
         try:
-            sample = outq.get(True, 1)
+            sample = outq.get(True, 1.5)
         except queue.Empty:
             break
         yield sample
