@@ -119,7 +119,6 @@ class StatsDHandler(threading.Thread):
         iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
         for k, v in iteritems:
             self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
-            self.gauges[k] = 0
             ret += 1
         return ret
 
