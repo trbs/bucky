@@ -37,6 +37,7 @@ import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
 import bucky.processor as processor
+from bucky.errors import BuckyError
 
 
 log = logging.getLogger(__name__)
@@ -167,7 +168,7 @@ def drop_privileges(user, group):
         gid = grp.getgrnam(group).gr_gid
 
     username = pwd.getpwuid(uid).pw_name
-    #groupname = grp.getgrgid(gid).gr_name
+    # groupname = grp.getgrgid(gid).gr_name
     groups = [g for g in grp.getgrall() if username in g.gr_mem]
 
     os.setgroups(groups)
@@ -223,72 +224,104 @@ def main():
     if cfg.uid or cfg.gid:
         drop_privileges(cfg.uid, cfg.gid)
 
-    sampleq = multiprocessing.Queue()
+    bucky = Bucky(cfg)
+    bucky.run()
 
-    stypes = []
-    if cfg.metricsd_enabled:
-        stypes.append(metricsd.MetricsDServer)
-    if cfg.collectd_enabled:
-        stypes.append(collectd.CollectDServer)
-    if cfg.statsd_enabled:
-        stypes.append(statsd.StatsDServer)
 
-    servers = []
-    for stype in stypes:
-        servers.append(stype(sampleq, cfg))
-        servers[-1].start()
+class Bucky(object):
+    def __init__(self, cfg):
+        self.sampleq = multiprocessing.Queue()
 
-    if cfg.processor is not None:
-        psampleq = multiprocessing.Queue()
-        proc = processor.CustomProcessor(sampleq, psampleq, cfg)
-        proc.start()
-    else:
-        proc = None
-        psampleq = sampleq
+        stypes = []
+        if cfg.metricsd_enabled:
+            stypes.append(metricsd.MetricsDServer)
+        if cfg.collectd_enabled:
+            stypes.append(collectd.CollectDServer)
+        if cfg.statsd_enabled:
+            stypes.append(statsd.StatsDServer)
 
-    if cfg.graphite_pickle_enabled:
-        carbon_client = carbon.PickleClient
-    else:
-        carbon_client = carbon.PlaintextClient
+        self.servers = []
+        for stype in stypes:
+            self.servers.append(stype(self.sampleq, cfg))
 
-    clients = []
-    for client in cfg.custom_clients + [carbon_client]:
-        send, recv = multiprocessing.Pipe()
-        instance = client(cfg, recv)
-        instance.start()
-        clients.append((instance, send))
+        if cfg.processor is not None:
+            self.psampleq = multiprocessing.Queue()
+            self.proc = processor.CustomProcessor(self.sampleq, self.psampleq,
+                                                  cfg)
+        else:
+            self.proc = None
+            self.psampleq = self.sampleq
 
-    def shutdown(signum, frame):
-        for server in servers:
+        if cfg.graphite_pickle_enabled:
+            carbon_client = carbon.PickleClient
+        else:
+            carbon_client = carbon.PlaintextClient
+
+        self.clients = []
+        for client in cfg.custom_clients + [carbon_client]:
+            send, recv = multiprocessing.Pipe()
+            instance = client(cfg, recv)
+            self.clients.append((instance, send))
+
+    def run(self):
+        def sigterm_handler(signum, frame):
+            log.info("Received SIGTERM")
+            self.psampleq.put(None)
+
+        for server in self.servers:
+            server.start()
+        if self.proc is not None:
+            self.proc.start()
+        for client, pipe in self.clients:
+            client.start()
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
+
+        while True:
+            try:
+                sample = self.psampleq.get(True, 1)
+                if not sample:
+                    break
+                for instance, pipe in self.clients:
+                    if not instance.is_alive():
+                        self.shutdown("Client process died. Exiting.")
+                    pipe.send(sample)
+            except queue.Empty:
+                pass
+            except IOError as exc:
+                # Probably due to interrupted system call by SIGTERM
+                log.debug("Bucky IOError: %s", exc)
+                continue
+            for srv in self.servers:
+                if not srv.is_alive():
+                    self.shutdown("Server thread died. Exiting.")
+            if self.proc is not None and not self.proc.is_alive():
+                self.shutdown("Processor thread died. Exiting.")
+        self.shutdown()
+
+    def shutdown(self, err=''):
+        log.info("Shutting down")
+        for server in self.servers:
+            log.info("Stopping server %s", server)
             server.close()
-            sampleq.put(None)  # FIXME? change to psampleq?
-
-    signal.signal(signal.SIGTERM, shutdown)
-
-    while True:
-        try:
-            sample = psampleq.get(True, 1)
-            if not sample:
-                break
-            for instance, pipe in clients:
-                if not instance.is_alive():
-                    log.error("Client process died. Exiting.")
-                    sys.exit(1)
-                pipe.send(sample)
-        except queue.Empty:
-            pass
-        for srv in servers:
-            if not srv.is_alive():
-                log.error("Server thread died. Exiting.")
-                sys.exit(1)
-        if proc is not None and not proc.is_alive():
-            log.error("Processor thread died. Exiting.")
-            sys.exit(1)
-
-    for child in multiprocessing.active_children():
-        child.terminate()
-        child.join()
-    sys.exit()
+            server.join(1)
+        if self.proc is not None:
+            log.info("Stopping processor %s", self.proc)
+            self.sampleq.put(None)
+            self.proc.join(1)
+        for client, pipe in self.clients:
+            log.info("Stopping client %s", client)
+            pipe.send(None)
+            client.join(1)
+        children = multiprocessing.active_children()
+        for child in children:
+            log.error("Child %s didn't die gracefully, terminating", child)
+            child.terminate()
+            child.join(1)
+        if children and not err:
+            err = "Not all children died gracefully"
+        if err:
+            raise BuckyError(err)
 
 
 def load_config(cfgfile, full_trace=False):

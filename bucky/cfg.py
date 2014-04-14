@@ -18,6 +18,9 @@ collectd_types = []
 collectd_converters = []
 collectd_use_entry_points = True
 
+collectd_security_level = 0
+collectd_auth_file = None
+
 statsd_ip = "127.0.0.1"
 statsd_port = 8125
 statsd_enabled = True
@@ -38,7 +41,9 @@ graphite_pickle_buffer_size = 500
 full_trace = False
 
 name_prefix = None
+name_prefix_parts = None
 name_postfix = None
+name_postfix_parts = None
 name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []

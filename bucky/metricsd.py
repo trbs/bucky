@@ -24,6 +24,12 @@ try:
 except ImportError:
     import Queue as queue
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
+
 import bucky.names as names
 
 from bucky.errors import ConfigError, ProtocolError
@@ -154,6 +160,7 @@ class MetricsDHandler(multiprocessing.Process):
         metric.update(mc.value)
 
     def run(self):
+        setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             to_sleep = self.next_update - time.time()
             if to_sleep <= 0:
@@ -162,9 +169,15 @@ class MetricsDHandler(multiprocessing.Process):
             to_sleep = self.interval
             try:
                 mv = self.inbox.get(True, to_sleep)
+                if mv is None:
+                    log.info("Handler received None, %s exiting", self)
+                    break
                 self.update_metric(mv)
             except queue.Empty:
                 continue
+
+    def close(self):
+        self.inbox.put(None)
 
     if six.PY3:
         def flush_updates(self):
@@ -227,3 +240,8 @@ class MetricsDServer(UDPServer):
                 return h
             if p.match(name):
                 return h
+
+    def close(self):
+        for pattern, handler in self.handlers:
+            handler.close()
+        super(MetricsDServer, self).close()

@@ -18,8 +18,14 @@ import copy
 import struct
 import logging
 
+import hmac
+from hashlib import sha1
+from hashlib import sha256
+from Crypto.Cipher import AES
+
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
+from bucky.helpers import FileMonitor
 
 log = logging.getLogger(__name__)
 
@@ -234,6 +240,126 @@ class CollectDParser(object):
         return _parser
 
 
+class CollectDCrypto(object):
+    def __init__(self, cfg):
+        sec_level = cfg.collectd_security_level
+        if sec_level in ("sign", "SIGN", "Sign", 1):
+            self.sec_level = 1
+        elif sec_level in ("encrypt", "ENCRYPT", "Encrypt", 2):
+            self.sec_level = 2
+        else:
+            self.sec_level = 0
+        self.auth_file = cfg.collectd_auth_file
+        self.auth_db = {}
+        self.cfg_mon = None
+        if self.auth_file:
+            self.load_auth_file()
+            self.cfg_mon = FileMonitor(self.auth_file)
+        if self.sec_level:
+            if not self.auth_file:
+                raise ConfigError("Collectd security level configured but no "
+                                  "auth file specified in configuration")
+            if not self.auth_db:
+                raise ConfigError("Collectd security level configured but no "
+                                  "user/passwd entries loaded from auth file")
+
+    def load_auth_file(self):
+        try:
+            f = open(self.auth_file)
+        except IOError as exc:
+            raise ConfigError("Unable to load collectd's auth file: %r", exc)
+        self.auth_db.clear()
+        for line in f:
+            line = line.strip()
+            if not line or line[0] == "#":
+                continue
+            user, passwd = line.split(":", 1)
+            user = user.strip()
+            passwd = passwd.strip()
+            if not user or not passwd:
+                log.warning("Found line with missing user or password")
+                continue
+            if user in self.auth_db:
+                log.warning("Found multiple entries for single user")
+            self.auth_db[user] = passwd
+        f.close()
+        log.info("Loaded collectd's auth file from %s", self.auth_file)
+
+    def parse(self, data):
+        if len(data) < 4:
+            raise ProtocolError("Truncated header.")
+        part_type, part_len = struct.unpack("!HH", data[:4])
+        sec_level = {0x0200: 1, 0x0210: 2}.get(part_type, 0)
+        if sec_level < self.sec_level:
+            raise ProtocolError("Packet has lower security level than allowed")
+        if not sec_level:
+            return data
+        if sec_level == 1 and not self.sec_level:
+            return data[part_len:]
+        data = data[4:]
+        part_len -= 4
+        if len(data) < part_len:
+            raise ProtocolError("Truncated part payload.")
+        if self.cfg_mon is not None and self.cfg_mon.modified():
+            log.info("Collectd authfile modified, reloading")
+            self.load_auth_file()
+        if sec_level == 1:
+            return self.parse_signed(part_len, data)
+        if sec_level == 2:
+            return self.parse_encrypted(part_len, data)
+
+    def parse_signed(self, part_len, data):
+        if part_len <= 32:
+            raise ProtocolError("Truncated signed part.")
+        sig, data = data[:32], data[32:]
+        uname_len = part_len - 32
+        uname = data[:uname_len].decode()
+        if uname not in self.auth_db:
+            raise ProtocolError("Signed packet, unknown user '%s'" % uname)
+        password = self.auth_db[uname].encode()
+        sig2 = hmac.new(password, msg=data, digestmod=sha256).digest()
+        if not self._hashes_match(sig, sig2):
+            raise ProtocolError("Bad signature from user '%s'" % uname)
+        data = data[uname_len:]
+        return data
+
+    def parse_encrypted(self, part_len, data):
+        if part_len != len(data):
+            raise ProtocolError("Enc pkt size disaggrees with header.")
+        if len(data) <= 38:
+            raise ProtocolError("Truncated encrypted part.")
+        uname_len, data = struct.unpack("!H", data[:2])[0], data[2:]
+        if len(data) <= uname_len + 36:
+            raise ProtocolError("Truncated encrypted part.")
+        uname, data = data[:uname_len].decode(), data[uname_len:]
+        if uname not in self.auth_db:
+            raise ProtocolError("Couldn't decrypt, unknown user '%s'" % uname)
+        iv, data = data[:16], data[16:]
+        password = self.auth_db[uname].encode()
+        key = sha256(password).digest()
+        pad_bytes = 16 - (len(data) % 16)
+        data += b'\0' * pad_bytes
+        data = AES.new(key, IV=iv, mode=AES.MODE_OFB).decrypt(data)
+        data = data[:-pad_bytes]
+        tag, data = data[:20], data[20:]
+        tag2 = sha1(data).digest()
+        if not self._hashes_match(tag, tag2):
+            raise ProtocolError("Bad checksum on enc pkt for '%s'" % uname)
+        return data
+
+    def _hashes_match(self, a, b):
+        """Constant time comparison of bytes for py3, strings for py2"""
+        if len(a) != len(b):
+            return False
+        diff = 0
+        if six.PY2:
+            a = bytearray(a)
+            b = bytearray(b)
+        for x, y in zip(a, b):
+            diff |= x ^ y
+        return not diff
+
+
 class CollectDConverter(object):
     def __init__(self, cfg):
         self.converters = dict(DEFAULT_CONVERTERS)
@@ -291,6 +417,7 @@ class CollectDServer(UDPServer):
     def __init__(self, queue, cfg):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
+        self.crypto = CollectDCrypto(cfg)
         self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
         self.prev_samples = {}
@@ -298,8 +425,15 @@ class CollectDServer(UDPServer):
 
     def handle(self, data, addr):
         try:
+            data = self.crypto.parse(data)
+        except ProtocolError as e:
+            log.error("Protocol error in CollectDCrypto: %s", e)
+            return True
+        try:
             for sample in self.parser.parse(data):
                 self.last_sample = sample
+                stype = sample["type"]
+                vname = sample["value_name"]
                 sample = self.converter.convert(sample)
                 if sample is None:
                     continue
@@ -307,6 +441,7 @@ class CollectDServer(UDPServer):
                 if not name.strip():
                     continue
                 val = self.calculate(host, name, vtype, val, time)
+                val = self.check_range(stype, vname, val)
                 if val is not None:
                     self.queue.put((host, name, val, time))
         except ProtocolError as e:
@@ -315,10 +450,28 @@ class CollectDServer(UDPServer):
                 log.info("Last sample: %s", self.last_sample)
         return True
 
+    def check_range(self, stype, vname, val):
+        if val is None:
+            return
+        try:
+            vmin, vmax = self.parser.types.type_ranges[stype][vname]
+        except KeyError:
+            log.error("Couldn't find vmin, vmax in CollectDTypes")
+            return val
+        if vmin is not None and val < vmin:
+            log.debug("Invalid value %s (<%s) for %s", val, vmin, vname)
+            log.debug("Last sample: %s", self.last_sample)
+            return
+        if vmax is not None and val > vmax:
+            log.debug("Invalid value %s (>%s) for %s", val, vmax, vname)
+            log.debug("Last sample: %s", self.last_sample)
+            return
+        return val
+
     def calculate(self, host, name, vtype, val, time):
         handlers = {
             0: self._calc_counter,  # counter
-            1: lambda _host, _name, v, _time: v,         # gauge
+            1: lambda _host, _name, v, _time: v,  # gauge
             2: self._calc_derive,  # derive
             3: self._calc_absolute  # absolute
         }
@@ -329,23 +482,28 @@ class CollectDServer(UDPServer):
         return handlers[vtype](host, name, val, time)
 
     def _calc_counter(self, host, name, val, time):
-        # I need to figure out how to handle wrapping
-        # Read: http://oss.oetiker.ch/rrdtool/tut/rrdtutorial.en.html
-        # and then fix later
         key = (host, name)
         if key not in self.prev_samples:
             self.prev_samples[key] = (val, time)
             return
         pval, ptime = self.prev_samples[key]
         self.prev_samples[key] = (val, time)
-        if val < pval or time <= ptime:
+        if time <= ptime:
             log.error("Invalid COUNTER update for: %s:%s" % key)
             log.info("Last sample: %s", self.last_sample)
             return
+        if val < pval:
+            # this is supposed to handle counter wrap around
+            # see https://collectd.org/wiki/index.php/Data_source
+            log.debug("COUNTER wrap-around for: %s:%s (%s -> %s)",
+                      host, name, pval, val)
+            if pval < 0x100000000:
+                val += 0x100000000  # 2**32
+            else:
+                val += 0x10000000000000000  # 2**64
         return float(val - pval) / (time - ptime)
 
     def _calc_derive(self, host, name, val, time):
-        # Like counter, I need to figure out wrapping
         key = (host, name)
         if key not in self.prev_samples:
             self.prev_samples[key] = (val, time)
