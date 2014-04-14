@@ -111,6 +111,7 @@ def test_simple_gauge(q, s):
     t.same_stat(None, "stats.gauges.gorm", 5, q.get())
     t.same_stat(None, "stats.numStats", 1, q.get())
 
+
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8133)
 @t.set_cfg("directory", "/tmp/var_lib_bucky")
