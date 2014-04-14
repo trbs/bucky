@@ -29,7 +29,7 @@ class Processor(multiprocessing.Process):
         while True:
             try:
                 sample = self.in_queue.get(True, 1)
-                if not sample:
+                if sample is None:
                     break
             except queue.Empty:
                 pass
