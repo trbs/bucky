@@ -15,6 +15,7 @@
 # Copyright 2011 Cloudant, Inc.
 
 import t
+import os
 import bucky.statsd
 
 
@@ -103,8 +104,34 @@ def test_simple_counter_not_legacy_namespace(q, s):
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8132)
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_gauge(q, s):
     s.send("gorm:5|g")
     t.same_stat(None, "stats.gauges.gorm", 5, q.get())
     t.same_stat(None, "stats.numStats", 1, q.get())
+
+@t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8133)
+@t.set_cfg("directory", "/tmp/var_lib_bucky")
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_simple_persistent_gauges(q, s):
+    if not os.path.isdir(t.cfg.directory):
+        os.makedirs(t.cfg.directory)
+    if os.path.isfile(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile)):
+        os.unlink(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile))
+    try:
+        s.handler.handle_line("gorm:5|g")
+        assert s.handler.gauges["gorm"] == 5
+
+        s.handler.save_gauges()
+
+        s.handler.handle_line("gorm:1|g")
+        assert s.handler.gauges["gorm"] == 1
+
+        s.handler.load_gauges()
+        assert s.handler.gauges["gorm"] == 5
+    finally:
+        if os.path.isfile(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile)):
+            os.unlink(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile))
+        os.removedirs(t.cfg.directory)

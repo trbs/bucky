@@ -223,6 +223,12 @@ def main():
     if cfg.uid or cfg.gid:
         drop_privileges(cfg.uid, cfg.gid)
 
+    if cfg.directory and not os.path.isdir(cfg.directory):
+        try:
+            os.makedirs(cfg.directory)
+        except:
+            log.exception("Could not create directory: %s" % cfg.directory)
+
     bucky = Bucky(cfg)
     bucky.run()
 

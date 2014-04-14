@@ -14,6 +14,7 @@
 #
 # Copyright 2011 Cloudant, Inc.
 
+import os
 import re
 import six
 import math
@@ -40,6 +41,7 @@ class StatsDHandler(threading.Thread):
         super(StatsDHandler, self).__init__()
         self.daemon = True
         self.queue = queue
+        self.cfg = cfg
         self.lock = threading.Lock()
         self.timers = {}
         self.gauges = {}
@@ -67,6 +69,40 @@ class StatsDHandler(threading.Thread):
             self.name_counter = make_name([self.global_prefix, self.prefix_counter])
             self.name_timer = make_name([self.global_prefix, self.prefix_timer])
             self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
+
+        self.gauges_filename = os.path.join(self.cfg.directory, self.cfg.statsd_gauges_savefile)
+
+    def load_gauges(self):
+        if not os.path.isfile(self.gauges_filename):
+            return
+        log.info("StatsD: Loading saved gauges")
+        try:
+            gauges = {}
+            with open(self.gauges_filename) as f:
+                for line in f:
+                    if line.startswith("#") or line.startswith(";"):
+                        continue
+                    line = line.strip()
+                    metric, value = line.split(" ")
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        value = float(value)
+                    gauges[metric] = value
+        except IOError:
+            log.exception("StatsD: IOError")
+        except ValueError:
+            log.exception("StatsD: Invalid data in gauges save file: '%s'" % line.strip())
+        else:
+            self.gauges.update(gauges)
+
+    def save_gauges(self):
+        try:
+            with open(self.gauges_filename, "wb") as f:
+                for metric, value in six.iteritems(self.gauges):
+                    f.write("%s %s\n" % (metric, value))
+        except IOError:
+            log.exception("StatsD: IOError")
 
     def run(self):
         name_global_numstats = self.name_global + "numStats"
@@ -225,7 +261,11 @@ class StatsDServer(udpserver.UDPServer):
         super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
         self.handler = StatsDHandler(queue, cfg)
 
+    def pre_shutdown(self):
+        self.handler.save_gauges()
+
     def run(self):
+        self.handler.load_gauges()
         self.handler.start()
         super(StatsDServer, self).run()
 
