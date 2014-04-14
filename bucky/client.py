@@ -32,7 +32,10 @@ class Client(multiprocessing.Process):
     def run(self):
         setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
-            self.send(*self.pipe.recv())
+            sample = self.pipe.recv()
+            if sample is None:
+                break
+            self.send(*sample)
 
     def send(self, host, name, value, time):
         raise NotImplemented()
