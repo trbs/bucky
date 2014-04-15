@@ -29,6 +29,7 @@ try:
 except ImportError:
     # Python <2.6
     _open = open
+
     def open(*args, **kwargs):
         """
         Wrapper around open which does not support 'encoding' keyword in
