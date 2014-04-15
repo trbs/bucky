@@ -24,6 +24,18 @@ import threading
 
 import bucky.udpserver as udpserver
 
+try:
+    from io import open
+except ImportError:
+    # Python <2.6
+    def open(*args, **kwargs):
+        """
+        Wrapper around open which does not support 'encoding' keyword in
+        older versions of Python
+        """
+        kwargs.pop("encoding")
+        return file(*args, **kwargs)
+
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +90,7 @@ class StatsDHandler(threading.Thread):
         log.info("StatsD: Loading saved gauges")
         try:
             gauges = {}
-            with open(self.gauges_filename) as f:
+            with open(self.gauges_filename, encoding='utf-8') as f:
                 for line in f:
                     if line.startswith("#") or line.startswith(";"):
                         continue
@@ -98,9 +110,9 @@ class StatsDHandler(threading.Thread):
 
     def save_gauges(self):
         try:
-            with open(self.gauges_filename, "wb") as f:
+            with open(self.gauges_filename, "w", encoding='utf-8') as f:
                 for metric, value in six.iteritems(self.gauges):
-                    f.write("%s %s\n" % (metric, value))
+                    f.write("%s %s\n" % (six.u(metric), value))
         except IOError:
             log.exception("StatsD: IOError")
 
