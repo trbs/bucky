@@ -28,13 +28,14 @@ try:
     from io import open
 except ImportError:
     # Python <2.6
+    _open = open
     def open(*args, **kwargs):
         """
         Wrapper around open which does not support 'encoding' keyword in
         older versions of Python
         """
         kwargs.pop("encoding")
-        return file(*args, **kwargs)
+        return _open(*args, **kwargs)
 
 
 log = logging.getLogger(__name__)
