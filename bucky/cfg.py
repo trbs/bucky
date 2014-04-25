@@ -49,3 +49,6 @@ name_strip_duplicates = True
 name_host_trim = []
 
 custom_clients = []
+
+processor = None
+processor_drop_on_error = False

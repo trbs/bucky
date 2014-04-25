@@ -225,6 +225,15 @@ config file::
     # be stripped from hostnames. For instance, if "company.tld"
     # were specified, the previous example would end up as "node".
     name_host_trim = []
+    
+    # processor is a callable that takes a (host, name, val, time)
+    # tuple as input and is expected to return a tuple of the same
+    # structure to forward the sample to the clients, or None to
+    # drop it. processor_drop_on_error specifies if the sample is
+    # dropped or forwarded to clients in case an exception is
+    # raised by the processor callable.
+    processor = None
+    processor_drop_on_error = False
 
 
 Configuring CollectD
@@ -312,3 +321,41 @@ conflicts. This is merely a property on the callable named
 "PRIORITY" and larger priorities are preferred. I don't imagine
 this will need to be used very often, but its there just in
 case.
+
+
+Configuring the Processor
+-------------------------
+
+A Processor is a process that recieves samples as they are parsed
+by the servers and performs actions on them before handing them
+over to the clients.
+
+If a callable is defined in the `processor` configuration variable,
+a Processor process will aply this callable to the sample recieved
+`(host, name, val, time)` and expects back a tuple of the same
+structure to forward to clients, or `None` to drop the sample.
+
+This makes it easy to add all sorts of custom filtering and
+modification on samples.
+
+This might be how you define a processor in your config file::
+
+    import time
+
+    def timediff(host, name, val, timestamp):
+        """Drop samples with large time offset
+        
+        Drop samples that are more than 2 minutes in the future
+        or more than 5 minutes in the past.
+
+        """
+
+        future = 120  # 2 minutes
+        past = 300  # 5 minutes
+        now = time.time()
+        if timestamp > now + future or timestamp < now - past:
+            return None
+        return host, name, val, timestamp
+
+    processor = timediff
+
