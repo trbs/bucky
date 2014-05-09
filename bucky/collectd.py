@@ -260,8 +260,8 @@ class CollectDCrypto(object):
                 raise ConfigError("Collectd security level configured but no "
                                   "auth file specified in configuration")
             if not self.auth_db:
-                raise ConfigError("Collectd security level configured but no "
-                                  "user/passwd entries loaded from auth file")
+                log.warning("Collectd security level configured but no "
+                            "user/passwd entries loaded from auth file")
 
     def load_auth_file(self):
         try:
