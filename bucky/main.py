@@ -192,7 +192,7 @@ def main():
 
     # Logging have to be configured before load_config,
     # where it can (and should) be already used
-    logfmt = "[%(levelname)s] %(module)s - %(message)s"
+    logfmt = "[%(asctime)-15s][%(levelname)s] %(module)s - %(message)s"
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(logfmt))
     handler.setLevel(logging.ERROR)  # Overridden by configuration
