@@ -19,6 +19,7 @@ import re
 import six
 import math
 import time
+import json
 import logging
 import threading
 
@@ -93,28 +94,16 @@ class StatsDHandler(threading.Thread):
         try:
             gauges = {}
             with open(self.gauges_filename, encoding='utf-8') as f:
-                for line in f:
-                    if line.startswith("#") or line.startswith(";"):
-                        continue
-                    line = line.strip()
-                    metric, value = line.split(" ")
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        value = float(value)
-                    gauges[metric] = value
+                gauges = json.load(f)
         except IOError:
             log.exception("StatsD: IOError")
-        except ValueError:
-            log.exception("StatsD: Invalid data in gauges save file: '%s'" % line.strip())
         else:
             self.gauges.update(gauges)
 
     def save_gauges(self):
         try:
             with open(self.gauges_filename, "w", encoding='utf-8') as f:
-                for metric, value in six.iteritems(self.gauges):
-                    f.write("%s %s\n" % (six.u(metric), value))
+                json.dump(self.gauges, f)
         except IOError:
             log.exception("StatsD: IOError")
 
