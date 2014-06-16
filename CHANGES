@@ -1,6 +1,11 @@
 Bucky Changelog
 ===============
 
+Bucky 2.2.1:
+
+* [NEW] Python Packaging Wheel Support
+
+
 Bucky 2.2.0:
 
 * [NEW] Processor hook, a process that recieves samples as they are parsed
