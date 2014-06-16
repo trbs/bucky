@@ -4,6 +4,7 @@ log_level = "INFO"
 nice = None
 uid = None
 gid = None
+directory = "/var/lib/bucky"
 
 metricsd_ip = "127.0.0.1"
 metricsd_port = 23632
@@ -30,6 +31,8 @@ statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
 statsd_prefix_timer = "timers"
 statsd_prefix_gauge = "gauges"
+statsd_persistent_gauges = False
+statsd_gauges_savefile = "gauges.save"
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003

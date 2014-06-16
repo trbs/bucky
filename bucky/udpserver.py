@@ -83,7 +83,15 @@ class UDPServer(multiprocessing.Process):
     def handle(self, data, addr):
         raise NotImplemented()
 
+    def pre_shutdown(self):
+        """ Pre shutdown hook """
+        pass
+
     def close(self):
+        try:
+            self.pre_shutdown()
+        except:
+            log.exception("Failed pre_shutdown method for %s" % self.__class__.__name__)
         self.send('EXIT')
 
     if six.PY3:
