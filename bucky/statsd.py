@@ -22,8 +22,9 @@ import time
 import json
 import logging
 import threading
-
 import bucky.udpserver as udpserver
+
+log = logging.getLogger(__name__)
 
 try:
     from io import open
@@ -40,7 +41,22 @@ except ImportError:
         return _open(*args, **kwargs)
 
 
-log = logging.getLogger(__name__)
+if six.PY3:
+    def read_json_file(gauges_filename):
+        with open(gauges_filename, mode='r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def write_json_file(gauges_filename, gauges):
+        with open(gauges_filename, mode='w', encoding='utf-8') as f:
+            json.dump(gauges, f)
+else:
+    def read_json_file(gauges_filename):
+        with open(gauges_filename, mode='rb') as f:
+            return json.load(f)
+
+    def write_json_file(gauges_filename, gauges):
+        with open(gauges_filename, mode='wb') as f:
+            json.dump(gauges, f)
 
 
 def make_name(parts):
@@ -85,25 +101,27 @@ class StatsDHandler(threading.Thread):
             self.name_timer = make_name([self.global_prefix, self.prefix_timer])
             self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
 
+        self.statsd_persistent_gauges = cfg.statsd_persistent_gauges
         self.gauges_filename = os.path.join(self.cfg.directory, self.cfg.statsd_gauges_savefile)
 
     def load_gauges(self):
+        if not self.statsd_persistent_gauges:
+            return
         if not os.path.isfile(self.gauges_filename):
             return
-        log.info("StatsD: Loading saved gauges")
+        log.info("StatsD: Loading saved gauges %s", self.gauges_filename)
         try:
-            gauges = {}
-            with open(self.gauges_filename, encoding='utf-8') as f:
-                gauges = json.load(f)
+            gauges = read_json_file(self.gauges_filename)
         except IOError:
             log.exception("StatsD: IOError")
         else:
             self.gauges.update(gauges)
 
     def save_gauges(self):
+        if not self.statsd_persistent_gauges:
+            return
         try:
-            with open(self.gauges_filename, "w", encoding='utf-8') as f:
-                json.dump(self.gauges, f)
+            write_json_file(self.gauges_filename, self.gauges)
         except IOError:
             log.exception("StatsD: IOError")
 

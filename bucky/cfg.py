@@ -31,6 +31,7 @@ statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
 statsd_prefix_timer = "timers"
 statsd_prefix_gauge = "gauges"
+statsd_persistent_gauges = False
 statsd_gauges_savefile = "gauges.save"
 
 graphite_ip = "127.0.0.1"

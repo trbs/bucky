@@ -114,6 +114,7 @@ def test_simple_gauge(q, s):
 
 @t.set_cfg("statsd_flush_time", 0.5)
 @t.set_cfg("statsd_port", 8133)
+@t.set_cfg("statsd_persistent_gauges", True)
 @t.set_cfg("directory", "/tmp/var_lib_bucky")
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_persistent_gauges(q, s):
