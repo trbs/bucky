@@ -191,9 +191,14 @@ config file::
     # will reconnect. The max reconnects applies each time a
     # disconnect is encountered and the reconnect delay is the time
     # in seconds between connection attempts. Setting max reconnects
-    # to a negative number removes the limit.
+    # to a negative number removes the limit. The backoff factor
+    # determines how much the reconnect delay will be multiplied with
+    # each reconnect round. It can be limited with a maximum after which
+    # the delay will not be multiplied anymore.
     graphite_max_reconnects = 3
     graphite_reconnect_delay = 5
+    graphite_backoff_factor = 1.5
+    graphite_backoff_max = 60
 
     # Configuration for sending metrics to Graphite via the pickle
     # interface. Be sure to edit graphite_port to match the settings

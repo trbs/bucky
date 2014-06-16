@@ -15,12 +15,16 @@
 # Copyright 2012 Cloudant, Inc.
 
 import multiprocessing
+import logging
 
 try:
     from setproctitle import setproctitle
 except ImportError:
     def setproctitle(title):
         pass
+
+
+log = logging.getLogger(__name__)
 
 
 class Client(multiprocessing.Process):
