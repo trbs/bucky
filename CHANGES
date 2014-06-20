@@ -1,6 +1,11 @@
 Bucky Changelog
 ===============
 
+Bucky 2.2.2:
+
+* [FIX] Persisting gauge-values does not work
+
+
 Bucky 2.2.1:
 
 * [NEW] Python Packaging Wheel Support
