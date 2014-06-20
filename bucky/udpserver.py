@@ -76,9 +76,13 @@ class UDPServer(multiprocessing.Process):
             data, addr = recvfrom(65535)
             addr = addr[:2]  # for compatibility with longer ipv6 tuples
             if data == b'EXIT':
-                return
+                break
             if not self.handle(data, addr):
-                return
+                break
+        try:
+            self.pre_shutdown()
+        except:
+            log.exception("Failed pre_shutdown method for %s" % self.__class__.__name__)
 
     def handle(self, data, addr):
         raise NotImplemented()
@@ -88,10 +92,6 @@ class UDPServer(multiprocessing.Process):
         pass
 
     def close(self):
-        try:
-            self.pre_shutdown()
-        except:
-            log.exception("Failed pre_shutdown method for %s" % self.__class__.__name__)
         self.send('EXIT')
 
     if six.PY3:
