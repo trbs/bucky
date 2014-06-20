@@ -43,6 +43,7 @@ def test_pkt_reader():
         t.ne(len(pkt), 0)
 
 
+@t.set_cfg("collectd_port", 25825)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter_old(q, s):
     s.send(next(pkts("collectd.pkts")))
@@ -100,6 +101,7 @@ TYPESDB = TDB_GAUGE + TDB_DERIVE + TDB_COUNTER + TDB_ABSOLUTE
 
 
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25827)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_gauge(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -109,6 +111,7 @@ def test_simple_gauge(q, s):
 
 
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25828)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_derive(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -119,6 +122,7 @@ def test_simple_derive(q, s):
 
 
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25829)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -129,6 +133,7 @@ def test_simple_counter(q, s):
 
 
 @cdtypes("counters a:COUNTER:0:U, b:COUNTER:0:U\n")
+@t.set_cfg("collectd_port", 25830)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_counter_wrap_32(q, s):
     # counter growing 1024 per measurement, 2 seconds interval, expecting
@@ -139,6 +144,7 @@ def test_counter_wrap_32(q, s):
 
 
 @cdtypes("counters a:COUNTER:0:U, b:COUNTER:0:U\n")
+@t.set_cfg("collectd_port", 25831)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_counter_wrap_64(q, s):
     # counter growing 1024 per measurement, 2 seconds interval, expecting
@@ -149,6 +155,7 @@ def test_counter_wrap_64(q, s):
 
 
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25832)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_absolute(q, s):
     # raw values sent are i^2 for i in [0, 9], devided by 2 (time interval)
@@ -158,6 +165,7 @@ def test_simple_absolute(q, s):
 
 
 @cdtypes("gauge value:GAUGE:5:50\n" + TDB_DERIVE + TDB_COUNTER + TDB_ABSOLUTE)
+@t.set_cfg("collectd_port", 25833)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_gauge_bounds(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -167,6 +175,7 @@ def test_simple_gauge_bounds(q, s):
 
 
 @cdtypes("derive value:DERIVE:3:8\n" + TDB_GAUGE + TDB_COUNTER + TDB_ABSOLUTE)
+@t.set_cfg("collectd_port", 25834)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_derive_bounds(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -177,6 +186,7 @@ def test_simple_derive_bounds(q, s):
 
 
 @cdtypes("counter value:COUNTER:3:8\n" + TDB_GAUGE + TDB_DERIVE + TDB_ABSOLUTE)
+@t.set_cfg("collectd_port", 25835)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_counter_bounds(q, s):
     # raw values sent are i^2 for i in [0, 9]
@@ -187,6 +197,7 @@ def test_simple_counter_bounds(q, s):
 
 
 @cdtypes("absolute value:ABSOLUTE:5:35\n" + TDB_GAUGE + TDB_DERIVE + TDB_COUNTER)
+@t.set_cfg("collectd_port", 25836)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_simple_absolute_bounds(q, s):
     # raw values sent are i^2 for i in [0, 9], devided by 2 (time interval)
@@ -198,6 +209,7 @@ def test_simple_absolute_bounds(q, s):
 @t.set_cfg("collectd_security_level", 1)
 @authfile("alice: 12345678")
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25837)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_net_auth(q, s):
     samples = send_get_data(q, s, 'collectd-squares-signed.pkts')
@@ -208,6 +220,7 @@ def test_net_auth(q, s):
 @t.set_cfg("collectd_security_level", 2)
 @authfile("alice: 12345678")
 @cdtypes(TYPESDB)
+@t.set_cfg("collectd_port", 25838)
 @t.udp_srv(bucky.collectd.CollectDServer)
 def test_net_enc(q, s):
     samples = send_get_data(q, s, 'collectd-squares-encrypted.pkts')

@@ -4,6 +4,7 @@ log_level = "INFO"
 nice = None
 uid = None
 gid = None
+directory = "/var/lib/bucky"
 
 metricsd_ip = "127.0.0.1"
 metricsd_port = 23632
@@ -30,11 +31,15 @@ statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
 statsd_prefix_timer = "timers"
 statsd_prefix_gauge = "gauges"
+statsd_persistent_gauges = False
+statsd_gauges_savefile = "gauges.save"
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
-graphite_max_reconnects = 3
+graphite_max_reconnects = 1000
 graphite_reconnect_delay = 5
+graphite_backoff_factor = 1.5
+graphite_backoff_max = 60
 graphite_pickle_enabled = False
 graphite_pickle_buffer_size = 500
 
@@ -49,3 +54,6 @@ name_strip_duplicates = True
 name_host_trim = []
 
 custom_clients = []
+
+processor = None
+processor_drop_on_error = False

@@ -1,6 +1,28 @@
 Bucky Changelog
 ===============
 
+Bucky 2.2.1:
+
+* [NEW] Python Packaging Wheel Support
+
+
+Bucky 2.2.0:
+
+* [NEW] Processor hook, a process that recieves samples as they are parsed
+        by the servers and performs actions on them before handing them
+        over to the clients.
+* [NEW] CollectDCrypto support
+* [NEW] StatsD Persistent Gauges
+* [NEW] Graphite added backoff_factor and backoff_max parameters
+* [FIX] More/Better Python3 support
+* [FIX] Gauges are constant until overwritten, and not reset at flush time
+* [FIX] Make metricsd server kill its handler subprocesses
+* [FIX] Fix handling of collectd counter wrapping
+* [FIX] Collectd types bounds checking
+* [FIX] resolve bind() endpoint in udpserver, allowing to bind to hostname or ipv6 addresses
+* [FIX] handle None returned from collectd metric name converter correctly
+
+
 Bucky 2.0.0:
 
 * [NEW] Allow Bucky to drop priveleges
@@ -10,9 +32,11 @@ Bucky 2.0.0:
 * [FIX] Multiple small speed optimalisations
 * [FIX] Do not use string formatting for debug log lines, use much more efficient arguments instead
 
+
 Bucky 0.3.1:
 
 * [FIX] setup.py
+
 
 Bucky 0.3.0:
 
