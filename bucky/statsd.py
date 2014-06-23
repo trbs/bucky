@@ -214,7 +214,7 @@ class StatsDHandler(threading.Thread):
         iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
         for k, v in iteritems:
             # only send a value if there was an update if `delete_idlestats` is `True`
-            if not self.delete_idlestats or k in self.keys_seen:
+            if not self.onlychanged_gauges or k in self.keys_seen:
                 self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
             ret += 1
         return ret
