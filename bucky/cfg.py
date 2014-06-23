@@ -30,9 +30,21 @@ statsd_legacy_namespace = True
 statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
 statsd_prefix_timer = "timers"
+statsd_prefix_set = "sets"
 statsd_prefix_gauge = "gauges"
 statsd_persistent_gauges = False
 statsd_gauges_savefile = "gauges.save"
+statsd_delete_idlestats = False
+# the following settings are only relevant if `statsd_delete_idlestats` is `True`
+statsd_delete_counters = True
+statsd_delete_timers = True
+statsd_delete_sets = True
+# statsd_delete_gauges = False
+# `statsd_delete_gauges = True` would make gauges in practice useless,
+# except if you get an absolute(!) value every flush-interval which would makes this setting irrelevant
+statsd_onlychanged_gauges = True
+# send gauge value to graphite only if there was a change
+
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
