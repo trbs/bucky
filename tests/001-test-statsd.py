@@ -89,6 +89,7 @@ def test_simple_timer(q, s):
     t.same_stat(None, "stats.timers.gorm.upper_90", 1, q.get())
     t.same_stat(None, "stats.timers.gorm.lower", 1, q.get())
     t.same_stat(None, "stats.timers.gorm.count", 10, q.get())
+    t.same_stat(None, "stats.timers.gorm.count_ps", 20, q.get())
     t.same_stat(None, "stats.numStats", 1, q.get())
 
 
