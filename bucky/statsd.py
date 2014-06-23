@@ -216,7 +216,7 @@ class StatsDHandler(threading.Thread):
             # only send a value if there was an update if `delete_idlestats` is `True`
             if not self.onlychanged_gauges or k in self.keys_seen:
                 self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
-            ret += 1
+                ret += 1
         return ret
 
     def enqueue_counters(self, stime):
