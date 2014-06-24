@@ -77,12 +77,14 @@ class StatsDHandler(threading.Thread):
         self.timers = {}
         self.gauges = {}
         self.counters = {}
+        self.sets = {}
         self.flush_time = cfg.statsd_flush_time
         self.legacy_namespace = cfg.statsd_legacy_namespace
         self.global_prefix = cfg.statsd_global_prefix
         self.prefix_counter = cfg.statsd_prefix_counter
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
+        self.prefix_set = cfg.statsd_prefix_set
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
@@ -95,14 +97,23 @@ class StatsDHandler(threading.Thread):
             self.name_legacy_count = 'stats_counts.'
             self.name_timer = 'stats.timers.'
             self.name_gauge = 'stats.gauges.'
+            self.name_set = 'stats.sets.'
         else:
             self.name_global = make_name([self.global_prefix])
             self.name_counter = make_name([self.global_prefix, self.prefix_counter])
             self.name_timer = make_name([self.global_prefix, self.prefix_timer])
             self.name_gauge = make_name([self.global_prefix, self.prefix_gauge])
+            self.name_set = make_name([self.global_prefix, self.prefix_set])
 
         self.statsd_persistent_gauges = cfg.statsd_persistent_gauges
         self.gauges_filename = os.path.join(self.cfg.directory, self.cfg.statsd_gauges_savefile)
+
+        self.keys_seen = set()
+        self.delete_idlestats = cfg.statsd_delete_idlestats
+        self.delete_counters = self.delete_idlestats and cfg.statsd_delete_counters
+        self.delete_timers = self.delete_idlestats and cfg.statsd_delete_timers
+        self.delete_sets = self.delete_idlestats and cfg.statsd_delete_sets
+        self.onlychanged_gauges = self.delete_idlestats and cfg.statsd_onlychanged_gauges
 
     def load_gauges(self):
         if not self.statsd_persistent_gauges:
@@ -116,6 +127,7 @@ class StatsDHandler(threading.Thread):
             log.exception("StatsD: IOError")
         else:
             self.gauges.update(gauges)
+            self.keys_seen.update(gauges.keys())
 
     def save_gauges(self):
         if not self.statsd_persistent_gauges:
@@ -131,10 +143,24 @@ class StatsDHandler(threading.Thread):
             time.sleep(self.flush_time)
             stime = int(time.time())
             with self.lock:
+                if self.delete_timers:
+                    rem_keys = set(self.timers.keys()) - self.keys_seen
+                    for k in rem_keys:
+                        del self.timers[k]
+                if self.delete_counters:
+                    rem_keys = set(self.counters.keys()) - self.keys_seen
+                    for k in rem_keys:
+                        del self.counters[k]
+                if self.delete_sets:
+                    rem_keys = set(self.sets.keys()) - self.keys_seen
+                    for k in rem_keys:
+                        del self.sets[k]
                 num_stats = self.enqueue_timers(stime)
                 num_stats += self.enqueue_counters(stime)
                 num_stats += self.enqueue_gauges(stime)
+                num_stats += self.enqueue_sets(stime)
                 self.enqueue(name_global_numstats, num_stats, stime)
+                self.keys_seen = set()
 
     def enqueue(self, name, stat, stime):
         # No hostnames on statsd
@@ -146,37 +172,51 @@ class StatsDHandler(threading.Thread):
         for k, v in iteritems:
             # Skip timers that haven't collected any values
             if not v:
-                continue
-            v.sort()
-            pct_thresh = 90
-            count = len(v)
-            vmin, vmax = v[0], v[-1]
-            mean, vthresh = vmin, vmax
+                self.enqueue("%s%s.count" % (self.name_timer, k), 0, stime)
+                self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime)
+            else:
+                v.sort()
+                pct_thresh = 90
+                count = len(v)
+                vmin, vmax = v[0], v[-1]
+                mean, vthresh = vmin, vmax
 
-            if count > 1:
-                thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
-                v = v[:thresh_idx]
-                vthresh = v[-1]
-                vsum = sum(v)
-                mean = vsum / float(len(v))
+                if count > 1:
+                    thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
+                    v = v[:thresh_idx]
+                    vthresh = v[-1]
+                    vsum = sum(v)
+                    mean = vsum / float(len(v))
 
-            self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
-            self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
-            t = int(pct_thresh)
-            self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
-            self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
-            self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
+                self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
+                self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
+                t = int(pct_thresh)
+                self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
+                self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
+                self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
+                self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime)
             self.timers[k] = []
             ret += 1
 
+        return ret
+
+    def enqueue_sets(self, stime):
+        ret = 0
+        iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
+        for k, v in iteritems:
+            self.enqueue("%s%s.count" % (self.name_set, k), len(v), stime)
+            ret += 1
+            self.sets[k] = set()
         return ret
 
     def enqueue_gauges(self, stime):
         ret = 0
         iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
         for k, v in iteritems:
-            self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
-            ret += 1
+            # only send a value if there was an update if `delete_idlestats` is `True`
+            if not self.onlychanged_gauges or k in self.keys_seen:
+                self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
+                ret += 1
         return ret
 
     def enqueue_counters(self, stime):
@@ -226,12 +266,15 @@ class StatsDHandler(threading.Thread):
                 self.handle_timer(key, fields)
             elif fields[1] == "g":
                 self.handle_gauge(key, fields)
+            elif fields[1] == "s":
+                self.handle_set(key, fields)
             else:
                 self.handle_counter(key, fields)
 
     def handle_key(self, key):
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
+        self.keys_seen.add(key)
         return key
 
     def handle_timer(self, key, fields):
@@ -255,6 +298,13 @@ class StatsDHandler(threading.Thread):
                 self.gauges[key] = self.gauges[key] + val
             else:
                 self.gauges[key] = val
+
+    def handle_set(self, key, fields):
+        valstr = fields[0] or "0"
+        with self.lock:
+            if key not in self.sets:
+                self.sets[key] = set()
+            self.sets[key].add(valstr)
 
     def handle_counter(self, key, fields):
         rate = 1.0
