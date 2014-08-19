@@ -319,7 +319,7 @@ class Bucky(object):
             log.info("Stopping client %s", client)
             pipe.send(None)
             client.join(2)
-        children = multiprocessing.active_children()
+        children = [child for child in multiprocessing.active_children() if not child.name.startswith("SyncManager")]
         for child in children:
             log.error("Child %s didn't die gracefully, terminating", child)
             child.terminate()
