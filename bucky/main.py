@@ -310,22 +310,22 @@ class Bucky(object):
         for server in self.servers:
             log.info("Stopping server %s", server)
             server.close()
-            server.join(1)
+            server.join(2)
         if self.proc is not None:
             log.info("Stopping processor %s", self.proc)
             self.sampleq.put(None)
-            self.proc.join(1)
+            self.proc.join(2)
         for client, pipe in self.clients:
             log.info("Stopping client %s", client)
             pipe.send(None)
-            client.join(1)
+            client.join(2)
         children = multiprocessing.active_children()
         for child in children:
             log.error("Child %s didn't die gracefully, terminating", child)
             child.terminate()
             child.join(1)
         if children and not err:
-            err = "Not all children died gracefully"
+            err = "Not all children died gracefully: %s" % children
         if err:
             raise BuckyError(err)
 
