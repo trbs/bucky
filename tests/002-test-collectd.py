@@ -25,7 +25,7 @@ except ImportError:
 import t
 import bucky.collectd
 from bucky import cfg
-from bucky.errors import ProtocolError, ConfigError
+from bucky.errors import ProtocolError
 
 
 def pkts(rfname):
@@ -259,7 +259,6 @@ def test_crypto_sec_level_0():
 
 
 def test_crypto_sec_level_1():
-    t.raises(ConfigError, cfg_crypto, 1, "")
     assert_crypto(False, 'collectd-squares.pkts', 1, "bob: 123")
     assert_crypto(False, 'collectd-squares-signed.pkts', 1, "bob: 123")
     assert_crypto(False, 'collectd-squares-encrypted.pkts', 1, "bob: 123")
@@ -269,7 +268,6 @@ def test_crypto_sec_level_1():
 
 
 def test_crypto_sec_level_2():
-    t.raises(ConfigError, cfg_crypto, 2, "")
     assert_crypto(False, 'collectd-squares.pkts', 2, "bob: 123")
     assert_crypto(False, 'collectd-squares-signed.pkts', 2, "bob: 123")
     assert_crypto(False, 'collectd-squares-encrypted.pkts', 2, "bob: 123")
@@ -293,6 +291,6 @@ def test_crypto_auth_reload():
     t.raises(ProtocolError, crypto.parse, enc_pkt)
     with open(crypto.auth_file, "a") as f:
         f.write("alice: 12345678\n")
-    time.sleep(.1)
+    time.sleep(1)
     t.eq(bool(crypto.parse(signed_pkt)), True)
     t.eq(bool(crypto.parse(enc_pkt)), True)

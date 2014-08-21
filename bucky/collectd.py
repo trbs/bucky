@@ -260,14 +260,14 @@ class CollectDCrypto(object):
                 raise ConfigError("Collectd security level configured but no "
                                   "auth file specified in configuration")
             if not self.auth_db:
-                raise ConfigError("Collectd security level configured but no "
-                                  "user/passwd entries loaded from auth file")
+                log.warning("Collectd security level configured but no "
+                            "user/passwd entries loaded from auth file")
 
     def load_auth_file(self):
         try:
             f = open(self.auth_file)
         except IOError as exc:
-            raise ConfigError("Unable to load collectd's auth file: %r", exc)
+            raise ConfigError("Unable to load collectd's auth file: %r" % exc)
         self.auth_db.clear()
         for line in f:
             line = line.strip()
