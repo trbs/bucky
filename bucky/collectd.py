@@ -207,7 +207,12 @@ class CollectDParser(object):
             else:
                 (vtype,) = struct.unpack("B", data[i])
             if vtype != vtypes[i][1]:
-                raise ProtocolError("Type mismatch with types.db")
+                if (vtype, vtypes[i][1]) in ((0, 2), (2, 0)):
+                    # if counter vs derive don't break, assume server is right
+                    log.debug("Type mismatch (counter/derive) for %s/%s",
+                              stype, vtypes[i][0])
+                else:
+                    raise ProtocolError("Type mismatch with types.db")
         data = data[nvals:]
         for i in range(nvals):
             vdata, data = data[:8], data[8:]
