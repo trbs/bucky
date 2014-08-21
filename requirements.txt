@@ -1,4 +1,4 @@
 six
 setproctitle
 pycrypto
-watchdog
+watchdog==0.7.1
