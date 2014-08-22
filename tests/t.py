@@ -21,9 +21,11 @@ import multiprocessing
 #logger = multiprocessing.log_to_stderr()
 #logger.setLevel(logging.DEBUG)
 
+import os
 import time
-from functools import wraps
 import tempfile
+from functools import wraps
+from contextlib import contextmanager
 
 import bucky.cfg as cfg
 cfg.debug = True
@@ -139,3 +141,11 @@ def temp_file(data):
     f.write(data.encode('utf-8'))
     f.close()
     return filename
+
+
+@contextmanager
+def unlinking(path):
+    try:
+        yield path
+    finally:
+        os.unlink(path)
