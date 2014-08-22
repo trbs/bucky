@@ -5,6 +5,7 @@ nice = None
 uid = None
 gid = None
 directory = "/var/lib/bucky"
+process_join_timeout = 2
 
 metricsd_ip = "127.0.0.1"
 metricsd_port = 23632

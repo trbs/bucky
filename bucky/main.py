@@ -310,15 +310,15 @@ class Bucky(object):
         for server in self.servers:
             log.info("Stopping server %s", server)
             server.close()
-            server.join(2)
+            server.join(cfg.process_join_timeout)
         if self.proc is not None:
             log.info("Stopping processor %s", self.proc)
             self.sampleq.put(None)
-            self.proc.join(2)
+            self.proc.join(cfg.process_join_timeout)
         for client, pipe in self.clients:
             log.info("Stopping client %s", client)
             pipe.send(None)
-            client.join(2)
+            client.join(cfg.process_join_timeout)
         children = [child for child in multiprocessing.active_children() if not child.name.startswith("SyncManager")]
         for child in children:
             log.error("Child %s didn't die gracefully, terminating", child)

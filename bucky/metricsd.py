@@ -31,6 +31,7 @@ except ImportError:
         pass
 
 import bucky.names as names
+import bucky.cfg as cfg
 
 from bucky.errors import ConfigError, ProtocolError
 from bucky.metrics.counter import Counter
@@ -244,4 +245,5 @@ class MetricsDServer(UDPServer):
     def close(self):
         for pattern, handler in self.handlers:
             handler.close()
+            handler.join(cfg.process_join_timeout)
         super(MetricsDServer, self).close()
