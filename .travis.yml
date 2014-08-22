@@ -23,7 +23,11 @@ install:
 
 script:
   - flake8 --show-source --ignore=E501,W391 .
-  - nosetests -v --with-coverage
+  - nosetests -v --with-coverage tests/000-test-bucky.py
+  - nosetests -v --with-coverage tests/001-test-statsd.py
+  - nosetests -v --with-coverage tests/002-test-collectd.py
+  - nosetests -v --with-coverage tests/003-test-processor.py
+  - nosetests -v --with-coverage tests/004-test-helpers.py
 
 after_success:
   - coveralls
