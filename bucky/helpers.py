@@ -4,15 +4,17 @@ import multiprocessing
 import watchdog.observers
 import watchdog.events
 
+import bucky.cfg as cfg
+
 
 class SingleFileEventHandler(watchdog.events.FileSystemEventHandler):
     def __init__(self, path, flag):
         super(SingleFileEventHandler, self).__init__()
-        self.path = path
+        self.path = path.encode()
         self.flag = flag
 
     def on_modified(self, event):
-        if event.src_path == self.path.encode():
+        if event.src_path.encode() == self.path:
             self.flag.value = 1
 
 
@@ -33,4 +35,4 @@ class FileMonitor(object):
 
     def stop(self):
         self.observer.stop()
-        self.observer.join()
+        self.observer.join(cfg.process_join_timeout)
