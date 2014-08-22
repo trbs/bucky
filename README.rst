@@ -68,6 +68,21 @@ Bucky supports Python 3. However this support is still very young
 and we would like to hear from you if you are running Bucky on
 Python3 and help us improve the support in real production environments.
 
+Sentry Support
+--------------
+
+Bucky has support for logging error messages to Sentry via the Python Raven client.
+
+To install raven_ run::
+
+    $ pip install raven
+    # or
+    $ easy_install raven
+
+.. _raven: http://raven.readthedocs.org/
+
+Next enable Sentry in Bucky's configuration file.
+
 Command Line Options
 --------------------
 

@@ -7,6 +7,11 @@ gid = None
 directory = "/var/lib/bucky"
 process_join_timeout = 2
 
+sentry_enabled = False
+sentry_dsn = None
+sentry_log_level = "WARNING"
+sentry_auto_log_stacks = False
+
 metricsd_ip = "127.0.0.1"
 metricsd_port = 23632
 metricsd_enabled = True
