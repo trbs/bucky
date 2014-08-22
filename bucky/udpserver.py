@@ -85,7 +85,7 @@ class UDPServer(multiprocessing.Process):
             log.exception("Failed pre_shutdown method for %s" % self.__class__.__name__)
 
     def handle(self, data, addr):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def pre_shutdown(self):
         """ Pre shutdown hook """

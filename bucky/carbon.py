@@ -90,7 +90,7 @@ class CarbonClient(client.Client):
             pass
 
     def send(self, host, name, value, mtime):
-        raise NotImplemented
+        raise NotImplementedError()
 
 
 class PlaintextClient(CarbonClient):
