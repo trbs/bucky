@@ -102,10 +102,12 @@ class PlaintextClient(CarbonClient):
                 self.sock.sendall(mesg)
                 return
             except socket.error as err:
-                if i + 1 >= self.max_reconnects:
-                    raise
                 log.error("Failed to send data to Carbon server: %s", err)
-                self.reconnect()
+                try:
+                    self.reconnect()
+                except socket.error as err:
+                    log.error("Failed reconnect to Carbon server: %s", err)
+        log.error("Dropping message %s", mesg)
 
 
 class PickleClient(CarbonClient):
@@ -129,7 +131,9 @@ class PickleClient(CarbonClient):
                 self.sock.sendall(header + payload)
                 return
             except socket.error as err:
-                if i + 1 >= self.max_reconnects:
-                    raise
                 log.error("Failed to send data to Carbon server: %s", err)
-                self.reconnect()
+                try:
+                    self.reconnect()
+                except socket.error as err:
+                    log.error("Failed reconnect to Carbon server: %s", err)
+        log.error("Dropping buffer!")
