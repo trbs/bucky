@@ -16,8 +16,12 @@
 
 # flake8: noqa
 
-import time
 import multiprocessing
+#import logging
+#logger = multiprocessing.log_to_stderr()
+#logger.setLevel(logging.DEBUG)
+
+import time
 from functools import wraps
 import tempfile
 

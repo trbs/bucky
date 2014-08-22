@@ -16,7 +16,12 @@
 
 import t
 import os
+import platform
+
 import bucky.statsd
+
+
+TIMEOUT = 60 if platform.system() == "Darwin" else 2
 
 
 def test_make_name():
@@ -30,9 +35,9 @@ def test_make_name():
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_counter(q, s):
     s.send("gorm:1|c")
-    t.same_stat(None, "stats.gorm", 2, q.get())
-    t.same_stat(None, "stats_counts.gorm", 1, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.gorm", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats_counts.gorm", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -41,9 +46,9 @@ def test_simple_counter(q, s):
 def test_multiple_messages(q, s):
     s.send("gorm:1|c")
     s.send("gorm:1|c")
-    t.same_stat(None, "stats.gorm", 4, q.get())
-    t.same_stat(None, "stats_counts.gorm", 2, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.gorm", 4, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats_counts.gorm", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -51,9 +56,9 @@ def test_multiple_messages(q, s):
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_larger_count(q, s):
     s.send("gorm:5|c")
-    t.same_stat(None, "stats.gorm", 10, q.get())
-    t.same_stat(None, "stats_counts.gorm", 5, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.gorm", 10, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats_counts.gorm", 5, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -69,12 +74,12 @@ def test_multiple_counters(q, s):
         "stats_counts.gurm": 1
     }
     for i in range(4):
-        stat = q.get()
+        stat = q.get(timeout=TIMEOUT)
         t.isin(stat[1], stats)
         t.eq(stats[stat[1]], stat[2])
         t.gt(stat[2], 0)
         stats.pop(stat[1])
-    t.same_stat(None, "stats.numStats", 2, q.get())
+    t.same_stat(None, "stats.numStats", 2, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -84,13 +89,13 @@ def test_simple_timer(q, s):
     for i in range(9):
         s.send("gorm:1|ms")
     s.send("gorm:2|ms")
-    t.same_stat(None, "stats.timers.gorm.mean", 1, q.get())
-    t.same_stat(None, "stats.timers.gorm.upper", 2, q.get())
-    t.same_stat(None, "stats.timers.gorm.upper_90", 1, q.get())
-    t.same_stat(None, "stats.timers.gorm.lower", 1, q.get())
-    t.same_stat(None, "stats.timers.gorm.count", 10, q.get())
-    t.same_stat(None, "stats.timers.gorm.count_ps", 20.0, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.timers.gorm.mean", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper_90", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.lower", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count", 10, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_ps", 20.0, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -99,9 +104,9 @@ def test_simple_timer(q, s):
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_counter_not_legacy_namespace(q, s):
     s.send("gorm:1|c")
-    t.same_stat(None, "stats.counters.gorm.rate", 2, q.get())
-    t.same_stat(None, "stats.counters.gorm.count", 1, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.counters.gorm.rate", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.counters.gorm.count", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
@@ -109,8 +114,8 @@ def test_simple_counter_not_legacy_namespace(q, s):
 @t.udp_srv(bucky.statsd.StatsDServer)
 def test_simple_gauge(q, s):
     s.send("gorm:5|g")
-    t.same_stat(None, "stats.gauges.gorm", 5, q.get())
-    t.same_stat(None, "stats.numStats", 1, q.get())
+    t.same_stat(None, "stats.gauges.gorm", 5, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
