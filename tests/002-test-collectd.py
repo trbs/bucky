@@ -228,6 +228,35 @@ def test_net_enc(q, s):
     check_samples(samples, seq, 10, 'test.squares.gauge')
 
 
+def test_counter_eq_derive():
+    """Test parsing of counters when expecting derives and vice versa"""
+
+    def run_parse(parse_func):
+        def wrapped(data):
+            return list(parse_func(data))
+
+        return wrapped
+
+    types = "false_counter value:COUNTER:U:U\nfalse_derive value:DERIVE:U:U\n"
+    with t.unlinking(t.temp_file(TYPESDB + types)) as path:
+        parser = bucky.collectd.CollectDParser(types_dbs=[path])
+        for pkts_file in ('collectd-counter.pkts', 'collectd-derive.pkts'):
+            for data in pkts(pkts_file):
+                t.not_raises(ProtocolError, run_parse(parser.parse), data)
+        for pkts_file in ('collectd-false-counter.pkts',
+                          'collectd-false-derive.pkts'):
+            for data in pkts(pkts_file):
+                t.raises(ProtocolError, run_parse(parser.parse), data)
+
+        parser = bucky.collectd.CollectDParser(types_dbs=[path],
+                                               counter_eq_derive=True)
+        for pkts_file in ('collectd-counter.pkts', 'collectd-derive.pkts',
+                          'collectd-false-counter.pkts',
+                          'collectd-false-derive.pkts'):
+            for data in pkts(pkts_file):
+                t.not_raises(ProtocolError, run_parse(parser.parse), data)
+
+
 def cfg_crypto(sec_level, auth_file):
     sec_level_dec = t.set_cfg('collectd_security_level', sec_level)
     auth_file_dec = authfile(auth_file)
