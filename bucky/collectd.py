@@ -17,11 +17,18 @@ import six
 import copy
 import struct
 import logging
+import multiprocessing
 
 import hmac
 from hashlib import sha1
 from hashlib import sha256
 from Crypto.Cipher import AES
+
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
 
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
@@ -413,15 +420,27 @@ class CollectDConverter(object):
                  name, inst, source, kpriority, ipriority)
 
 
-class CollectDServer(UDPServer):
-    def __init__(self, queue, cfg):
-        super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
+class CollectDWorker(multiprocessing.Process):
+    def __init__(self, pipe, queue, cfg, id_num=-1):
+        super(CollectDWorker, self).__init__()
+        self.daemon = True
+        self.pipe = pipe
         self.queue = queue
+        self.id_num = id_num
         self.crypto = CollectDCrypto(cfg)
         self.parser = CollectDParser(cfg.collectd_types)
         self.converter = CollectDConverter(cfg)
         self.prev_samples = {}
         self.last_sample = None
+
+    def run(self):
+        log.info("CollectDWorker up and running")
+        setproctitle("bucky: CollectDWorker %d" % self.id_num)
+        while True:
+            pkt = self.pipe.recv()
+            if pkt is None:
+                break
+            self.handle(*pkt)
 
     def handle(self, data, addr):
         try:
@@ -528,3 +547,46 @@ class CollectDServer(UDPServer):
             log.info("Last sample: %s", self.last_sample)
             return
         return float(val) / (time - ptime)
+
+
+class CollectDServer(UDPServer):
+    def __init__(self, queue, cfg):
+        super(CollectDServer, self).__init__(cfg.collectd_ip,
+                                             cfg.collectd_port)
+        self.daemon = False
+        self.queue = queue
+        self.cfg = cfg
+        self.workers = []
+
+    def run(self):
+        self.workers = []
+        for i in range(self.cfg.collectd_workers):
+            send, recv = multiprocessing.Pipe()
+            worker = CollectDWorker(recv, self.queue, self.cfg, i)
+            worker.start()
+            self.workers.append((worker, send))
+        super(CollectDServer, self).run()
+
+    def handle(self, data, addr):
+        ip_addr, port = addr
+        index = hash(ip_addr) % len(self.workers)
+        worker, pipe = self.workers[index]
+        pipe.send((data, addr))
+        # check if all is running
+        for worker, pipe in self.workers:
+            if not worker.is_alive():
+                log.error("Worker %s died, stopping server.", worker)
+                return
+        return True
+
+    def pre_shutdown(self):
+        log.info("Shutting down CollectDServer")
+        for worker, pipe in self.workers:
+            log.info("Stopping worker %s", worker)
+            pipe.send(None)
+        for worker, pipe in self.workers:
+            worker.join(self.cfg.process_join_timeout)
+        for child in multiprocessing.active_children():
+            log.error("Child %s didn't die gracefully, terminating", child)
+            child.terminate()
+            child.join(1)
