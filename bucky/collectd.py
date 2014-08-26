@@ -139,8 +139,9 @@ class CollectDTypes(object):
 
 
 class CollectDParser(object):
-    def __init__(self, types_dbs=[]):
+    def __init__(self, types_dbs=[], counter_eq_derive=False):
         self.types = CollectDTypes(types_dbs=types_dbs)
+        self.counter_eq_derive = counter_eq_derive
 
     def parse(self, data):
         for sample in self.parse_samples(data):
@@ -207,7 +208,13 @@ class CollectDParser(object):
             else:
                 (vtype,) = struct.unpack("B", data[i])
             if vtype != vtypes[i][1]:
-                raise ProtocolError("Type mismatch with types.db")
+                if self.counter_eq_derive and \
+                   (vtype, vtypes[i][1]) in ((0, 2), (2, 0)):
+                    # if counter vs derive don't break, assume server is right
+                    log.debug("Type mismatch (counter/derive) for %s/%s",
+                              stype, vtypes[i][0])
+                else:
+                    raise ProtocolError("Type mismatch with types.db")
         data = data[nvals:]
         for i in range(nvals):
             vdata, data = data[:8], data[8:]
@@ -418,7 +425,8 @@ class CollectDServer(UDPServer):
         super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
         self.queue = queue
         self.crypto = CollectDCrypto(cfg)
-        self.parser = CollectDParser(cfg.collectd_types)
+        self.parser = CollectDParser(cfg.collectd_types,
+                                     cfg.collectd_counter_eq_derive)
         self.converter = CollectDConverter(cfg)
         self.prev_samples = {}
         self.last_sample = None

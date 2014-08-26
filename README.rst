@@ -171,6 +171,15 @@ config file::
     # used to define converters is 'bucky.collectd.converters'.
     collectd_use_entry_points = True
 
+    # If a collectd metric is received with a value of type counter when
+    # our types.db define it as derive, or vice versa, don't raise an
+    # exception and assume the server's types.db is correct.
+    # Types counter and derive are very similar. Also, it's common
+    # for different versions/installations of collectd in 'clients'
+    # to have a bit different definitions for the same metrics
+    # (counter/derive conflict).
+    collectd_counter_eq_derive = False
+
     # Cryptographic settings for collectd. Security level 1 requires
     # signed packets, level 2 requires encrypted communication.
     # Auth file should contain lines in the form 'user: password'
