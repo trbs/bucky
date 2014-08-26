@@ -16,12 +16,11 @@
 
 import t
 import os
-import platform
 
 import bucky.statsd
 
 
-TIMEOUT = 60 if platform.system() == "Darwin" else 2
+TIMEOUT = 3
 
 
 def test_make_name():
