@@ -24,6 +24,7 @@ collectd_enabled = True
 collectd_types = []
 collectd_converters = []
 collectd_use_entry_points = True
+collectd_counter_eq_derive = False
 
 collectd_security_level = 0
 collectd_auth_file = None
