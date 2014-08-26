@@ -247,7 +247,7 @@ class Bucky(object):
         if cfg.metricsd_enabled:
             stypes.append(metricsd.MetricsDServer)
         if cfg.collectd_enabled:
-            stypes.append(collectd.CollectDServer)
+            stypes.append(collectd.getCollectDServer)
         if cfg.statsd_enabled:
             stypes.append(statsd.StatsDServer)
 
