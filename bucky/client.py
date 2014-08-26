@@ -36,7 +36,10 @@ class Client(multiprocessing.Process):
     def run(self):
         setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
-            sample = self.pipe.recv()
+            try:
+                sample = self.pipe.recv()
+            except KeyboardInterrupt:
+                continue
             if sample is None:
                 break
             self.send(*sample)

@@ -73,7 +73,10 @@ class UDPServer(multiprocessing.Process):
         setproctitle("bucky: %s" % self.__class__.__name__)
         recvfrom = self.sock_recvfrom
         while True:
-            data, addr = recvfrom(65535)
+            try:
+                data, addr = recvfrom(65535)
+            except (IOError, KeyboardInterrupt):
+                continue
             addr = addr[:2]  # for compatibility with longer ipv6 tuples
             if data == b'EXIT':
                 break
@@ -82,7 +85,8 @@ class UDPServer(multiprocessing.Process):
         try:
             self.pre_shutdown()
         except:
-            log.exception("Failed pre_shutdown method for %s" % self.__class__.__name__)
+            log.exception("Failed pre_shutdown method for %s",
+                          self.__class__.__name__)
 
     def handle(self, data, addr):
         raise NotImplementedError()

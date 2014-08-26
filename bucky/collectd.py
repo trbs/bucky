@@ -16,6 +16,7 @@ import os
 import six
 import copy
 import struct
+import signal
 import logging
 import multiprocessing
 
@@ -565,17 +566,20 @@ class CollectDWorker(multiprocessing.Process):
     def __init__(self, pipe, queue, cfg, id_num=-1):
         super(CollectDWorker, self).__init__()
         self.daemon = True
+        self.name = "CollectDWorker%d" % id_num
         self.pipe = pipe
         self.queue = queue
         self.cfg = cfg
-        self.id_num = id_num
 
     def run(self):
         log.info("CollectDWorker up and running")
-        setproctitle("bucky: CollectDWorker %d" % self.id_num)
+        setproctitle("bucky: %s" % self.name)
         handler = CollectDHandler(self.cfg)
         while True:
-            data = self.pipe.recv()
+            try:
+                data = self.pipe.recv()
+            except KeyboardInterrupt:
+                continue
             if data is None:
                 break
             for sample in handler.parse(data):
@@ -601,12 +605,18 @@ class CollectDServerMP(UDPServer):
         self.workers = []
 
     def run(self):
+        def sigterm_handler(signum, frame):
+            log.info("Received SIGTERM")
+            self.close()
+
         self.workers = []
         for i in range(self.cfg.collectd_workers):
-            send, recv = multiprocessing.Pipe()
+            recv, send = multiprocessing.Pipe()
             worker = CollectDWorker(recv, self.queue, self.cfg, i)
             worker.start()
             self.workers.append((worker, send))
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
         super(CollectDServerMP, self).run()
 
     def handle(self, data, addr):
