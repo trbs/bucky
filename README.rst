@@ -180,6 +180,10 @@ config file::
     # (counter/derive conflict).
     collectd_counter_eq_derive = False
 
+    # CollectD server can also run using multiple worker subprocesses.
+    # Incoming packets are routed to workers based on source IP.
+    collectd_workers = 1
+
     # Cryptographic settings for collectd. Security level 1 requires
     # signed packets, level 2 requires encrypted communication.
     # Auth file should contain lines in the form 'user: password'

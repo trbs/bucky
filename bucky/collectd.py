@@ -16,12 +16,20 @@ import os
 import six
 import copy
 import struct
+import signal
 import logging
+import multiprocessing
 
 import hmac
 from hashlib import sha1
 from hashlib import sha256
 from Crypto.Cipher import AES
+
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
 
 from bucky.errors import ConfigError, ProtocolError
 from bucky.udpserver import UDPServer
@@ -420,10 +428,10 @@ class CollectDConverter(object):
                  name, inst, source, kpriority, ipriority)
 
 
-class CollectDServer(UDPServer):
-    def __init__(self, queue, cfg):
-        super(CollectDServer, self).__init__(cfg.collectd_ip, cfg.collectd_port)
-        self.queue = queue
+class CollectDHandler(object):
+    """Wraps all CollectD parsing functionality in a class"""
+
+    def __init__(self, cfg):
         self.crypto = CollectDCrypto(cfg)
         self.parser = CollectDParser(cfg.collectd_types,
                                      cfg.collectd_counter_eq_derive)
@@ -431,12 +439,12 @@ class CollectDServer(UDPServer):
         self.prev_samples = {}
         self.last_sample = None
 
-    def handle(self, data, addr):
+    def parse(self, data):
         try:
             data = self.crypto.parse(data)
         except ProtocolError as e:
             log.error("Protocol error in CollectDCrypto: %s", e)
-            return True
+            return
         try:
             for sample in self.parser.parse(data):
                 self.last_sample = sample
@@ -451,12 +459,11 @@ class CollectDServer(UDPServer):
                 val = self.calculate(host, name, vtype, val, time)
                 val = self.check_range(stype, vname, val)
                 if val is not None:
-                    self.queue.put((host, name, val, time))
+                    yield host, name, val, time
         except ProtocolError as e:
             log.error("Protocol error: %s", e)
             if self.last_sample is not None:
                 log.info("Last sample: %s", self.last_sample)
-        return True
 
     def check_range(self, stype, vname, val):
         if val is None:
@@ -536,3 +543,109 @@ class CollectDServer(UDPServer):
             log.info("Last sample: %s", self.last_sample)
             return
         return float(val) / (time - ptime)
+
+
+class CollectDServer(UDPServer):
+    """Single processes CollectDServer"""
+
+    def __init__(self, queue, cfg):
+        super(CollectDServer, self).__init__(cfg.collectd_ip,
+                                             cfg.collectd_port)
+        self.handler = CollectDHandler(cfg)
+        self.queue = queue
+
+    def handle(self, data, addr):
+        for sample in self.handler.parse(data):
+            self.queue.put(sample)
+        return True
+
+
+class CollectDWorker(multiprocessing.Process):
+    """CollectDWorker plugs a CollectDHandler between a pipe and a queue"""
+
+    def __init__(self, pipe, queue, cfg, id_num=-1):
+        super(CollectDWorker, self).__init__()
+        self.daemon = True
+        self.name = "CollectDWorker%d" % id_num
+        self.pipe = pipe
+        self.queue = queue
+        self.cfg = cfg
+
+    def run(self):
+        log.info("CollectDWorker up and running")
+        setproctitle("bucky: %s" % self.name)
+        handler = CollectDHandler(self.cfg)
+        while True:
+            try:
+                data = self.pipe.recv()
+            except KeyboardInterrupt:
+                continue
+            if data is None:
+                break
+            for sample in handler.parse(data):
+                self.queue.put(sample)
+
+
+class CollectDServerMP(UDPServer):
+    """Multiprocess CollectD server
+
+    Starts a configurable (cfg.collectd_workers) number of worker processes.
+    Routing of incoming packets to worker subsprocesses is performed by
+    consistent hashing, meaning that all packets from a given IP address will
+    always go to the same worker.
+
+    """
+
+    def __init__(self, queue, cfg):
+        super(CollectDServerMP, self).__init__(cfg.collectd_ip,
+                                               cfg.collectd_port)
+        self.daemon = False
+        self.queue = queue
+        self.cfg = cfg
+        self.workers = []
+
+    def run(self):
+        def sigterm_handler(signum, frame):
+            log.info("Received SIGTERM")
+            self.close()
+
+        self.workers = []
+        for i in range(self.cfg.collectd_workers):
+            recv, send = multiprocessing.Pipe()
+            worker = CollectDWorker(recv, self.queue, self.cfg, i)
+            worker.start()
+            self.workers.append((worker, send))
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
+        super(CollectDServerMP, self).run()
+
+    def handle(self, data, addr):
+        ip_addr, port = addr
+        # deterministically map source ip address to worker
+        index = hash(ip_addr) % len(self.workers)
+        worker, pipe = self.workers[index]
+        pipe.send(data)
+        # check if all is running
+        for worker, pipe in self.workers:
+            if not worker.is_alive():
+                log.error("Worker %s died, stopping server.", worker)
+                return
+        return True
+
+    def pre_shutdown(self):
+        log.info("Shutting down CollectDServer")
+        for worker, pipe in self.workers:
+            log.info("Stopping worker %s", worker)
+            pipe.send(None)
+        for worker, pipe in self.workers:
+            worker.join(self.cfg.process_join_timeout)
+        for child in multiprocessing.active_children():
+            log.error("Child %s didn't die gracefully, terminating", child)
+            child.terminate()
+            child.join(1)
+
+
+def getCollectDServer(queue, cfg):
+    """Get the appropriate collectd server (multi processed or not)"""
+    server = CollectDServerMP if cfg.collectd_workers > 1 else CollectDServer
+    return server(queue, cfg)

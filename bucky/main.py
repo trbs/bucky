@@ -247,7 +247,7 @@ class Bucky(object):
         if cfg.metricsd_enabled:
             stypes.append(metricsd.MetricsDServer)
         if cfg.collectd_enabled:
-            stypes.append(collectd.CollectDServer)
+            stypes.append(collectd.getCollectDServer)
         if cfg.statsd_enabled:
             stypes.append(statsd.StatsDServer)
 
@@ -303,6 +303,8 @@ class Bucky(object):
                 # Probably due to interrupted system call by SIGTERM
                 log.debug("Bucky IOError: %s", exc)
                 continue
+            except KeyboardInterrupt:
+                break
             for srv in self.servers:
                 if not srv.is_alive():
                     self.shutdown("Server thread died. Exiting.")
