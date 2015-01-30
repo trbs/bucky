@@ -10,6 +10,7 @@ python:
   - 3.3
   - 3.4
   - pypy
+  - pypy3
 
 install:
   # workaround for travis build vm's and multiprocessing
