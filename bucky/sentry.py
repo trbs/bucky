@@ -10,4 +10,3 @@ def sentry_setup(dsn, level=None, auto_log_stacks=False):
     client = Client(dsn, auto_log_stacks=auto_log_stacks)
     handler = SentryHandler(client=client, level=level)
     setup_logging(handler)
-
