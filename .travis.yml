@@ -24,7 +24,7 @@ install:
   - pip install -e . --use-mirrors
 
 script:
-  - flake8 --show-source --ignore=E501,W391 .
+  - flake8 --show-source --ignore=E501,E731,W391 .
   - nosetests -v --with-coverage tests/test_000_bucky.py
   - nosetests -v --with-coverage tests/test_001_statsd.py
   - nosetests -v --with-coverage tests/test_002_collectd.py
