@@ -77,3 +77,9 @@ custom_clients = []
 
 processor = None
 processor_drop_on_error = False
+
+def ensure_value(attr, value):
+    _vars = globals()
+    if _vars.get(attr, None) is None:
+        _vars[attr] = value
+    return _vars[attr]

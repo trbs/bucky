@@ -86,8 +86,8 @@ def options():
             help="Port to bind for the CollectD UDP socket [%default]"
         ),
         op.make_option(
-            "--collectd-types", dest="collectd_types",
-            metavar="FILE", action='append', default=cfg.collectd_types,
+            "--collectd-types", dest="collectd_types", metavar="FILE",
+            type='string', action='append', default=list(cfg.collectd_types),
             help="Path to the collectd types.db file, can be specified multiple times"
         ),
         op.make_option(
