@@ -1,6 +1,24 @@
 Bucky Changelog
 ===============
 
+Bucky 2.3.0:
+
+* [NEW] Sets
+* [NEW] Delete idlestats
+* [NEW] Make join timeout for subprocesses configurable
+* [NEW] Sentry Support, log error message to Sentry server
+* [NEW] Support for PyPy
+* [NEW] Collectd to support configurable number of worker processes
+* [FIX] Do not exit bucky when carbon daemon is down, instead log and drop
+        the message after max_reconnects and continue processing
+* [FIX] Raise proper NotImplementedError
+* [FIX] Don't have collectd crypto file on empty auth_file
+* [FIX] Handle collectd counter/derive conflict (a little better)
+* [FIX] Handle signals more gracefully
+* [FIX] name_postfix_parts config option
+* [FIX] Error in optparse for --collectd-types option
+
+
 Bucky 2.2.2:
 
 * [FIX] Persisting gauge-values does not work
@@ -48,6 +66,4 @@ Bucky 0.3.0:
 * [FIX] Change github url
 * [NEW] Change process names of children when setproctitle is installed
 * [NEW] Start keeping a changelog 
-
-
 
