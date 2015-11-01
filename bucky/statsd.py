@@ -176,25 +176,56 @@ class StatsDHandler(threading.Thread):
                 self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime)
             else:
                 v.sort()
-                pct_thresh = 90
                 count = len(v)
                 vmin, vmax = v[0], v[-1]
-                mean, vthresh = vmin, vmax
 
-                if count > 1:
+                pct_thresholds = [90]
+
+                cumulative_values = [vmin]
+                cumul_sum_squares_values = [vmin * vmin]
+                for i, value in enumerate(v):
+                    if i == 0:
+                        continue
+                    cumulative_values.append(value + cumulative_values[i - 1])
+                    cumul_sum_squares_values.append(
+                        value * value + cumul_sum_squares_values[i - 1])
+
+                for pct_thresh in pct_thresholds:
                     thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
-                    v = v[:thresh_idx]
-                    vthresh = v[-1]
-                    vsum = sum(v)
-                    mean = vsum / float(len(v))
+                    if thresh_idx == 0:
+                        continue
+                    vthresh = v[thresh_idx - 1]
+                    vsum = cumulative_values[thresh_idx - 1]
+                    vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
+
+                    mean = vsum / float(thresh_idx)
+
+                    t = int(pct_thresh)
+                    self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime)
+                    self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
+                    self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime)
+                    self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime)
+                    self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime)
+
+                vsum = cumulative_values[count - 1]
+                vsum_squares = cumul_sum_squares_values[count - 1]
+                mean = vsum / float(count)
+
+                sum_of_diffs = sum(((value - mean) ** 2 for value in v))
+
+                mid = int(count / 2)
+                median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
+                stddev = math.sqrt(sum_of_diffs / count)
 
                 self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
                 self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
-                t = int(pct_thresh)
-                self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
                 self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
                 self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
                 self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime)
+                self.enqueue("%s%s.median" % (self.name_timer, k), median, stime)
+                self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime)
+                self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime)
+                self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime)
             self.timers[k] = []
             ret += 1
 

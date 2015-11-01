@@ -87,14 +87,109 @@ def test_multiple_counters(q, s):
 def test_simple_timer(q, s):
     for i in range(9):
         s.send("gorm:1|ms")
-    s.send("gorm:2|ms")
-    t.same_stat(None, "stats.timers.gorm.mean", 1, q.get(timeout=TIMEOUT))
-    t.same_stat(None, "stats.timers.gorm.upper", 2, q.get(timeout=TIMEOUT))
+    s.send("gorm:2|ms")  # Out of the 90% threshold
+    t.same_stat(None, "stats.timers.gorm.mean_90", 1, q.get(timeout=TIMEOUT))
     t.same_stat(None, "stats.timers.gorm.upper_90", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_90", 9, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_90", 9, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares_90", 9, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.mean", 1.1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper", 2, q.get(timeout=TIMEOUT))
     t.same_stat(None, "stats.timers.gorm.lower", 1, q.get(timeout=TIMEOUT))
     t.same_stat(None, "stats.timers.gorm.count", 10, q.get(timeout=TIMEOUT))
     t.same_stat(None, "stats.timers.gorm.count_ps", 20.0, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.median", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum", 11, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares", 13, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.std", 0.3, q.get(timeout=TIMEOUT))
     t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
+
+
+@t.set_cfg("statsd_flush_time", 0.5)
+@t.set_cfg("statsd_port", 8130)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_timer_unsorted(q, s):
+    s.send("gorm:2|ms")
+    s.send("gorm:5|ms")
+    s.send("gorm:7|ms")  # Out of the 90% threshold
+    s.send("gorm:3|ms")
+    t.same_stat(None, "stats.timers.gorm.mean_90", 10 / 3.0, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper_90", 5, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_90", 3, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_90", 10, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares_90", 38, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.mean", 17 / 4.0, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper", 7, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.lower", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count", 4, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_ps", 8, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.median", 4, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum", 17, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares", 87, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.std", 1.920286436967152, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
+
+
+@t.set_cfg("statsd_flush_time", 0.1)
+@t.set_cfg("statsd_port", 8130)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_timer_single_time(q, s):
+    s.send("gorm:100|ms")
+    t.same_stat(None, "stats.timers.gorm.mean", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.lower", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count", 1, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_ps", 10, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.median", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares", 10000, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.std", 0, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
+
+
+@t.set_cfg("statsd_flush_time", 0.1)
+@t.set_cfg("statsd_port", 8130)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_timer_multiple_times(q, s):
+    s.send("gorm:100|ms")
+    s.send("gorm:200|ms")
+    s.send("gorm:300|ms")  # Out of the 90% threshold
+    t.same_stat(None, "stats.timers.gorm.mean_90", 150, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper_90", 200, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_90", 2, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_90", 300, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares_90", 50000, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.mean", 200, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.upper", 300, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.lower", 100, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count", 3, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.count_ps", 30, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.median", 200, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum", 600, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.sum_squares", 140000, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.timers.gorm.std", 81.64965809277261, q.get(timeout=TIMEOUT))
+    t.same_stat(None, "stats.numStats", 1, q.get(timeout=TIMEOUT))
+
+
+def queue_skip(q, number_of_elements):
+    """
+    Skip some elements from a Queue object
+    """
+    for _ in range(number_of_elements):
+        q.get(timeout=TIMEOUT)
+
+
+@t.set_cfg("statsd_flush_time", 0.1)
+@t.set_cfg("statsd_port", 8130)
+@t.udp_srv(bucky.statsd.StatsDServer)
+def test_timer_multiple_times_even(q, s):
+    s.send("gorm:300|ms")
+    s.send("gorm:200|ms")
+    s.send("gorm:400|ms")
+    s.send("gorm:100|ms")
+    queue_skip(q, 10)
+    t.same_stat(None, "stats.timers.gorm.median", 250, q.get(timeout=TIMEOUT))
+    queue_skip(q, 4)
 
 
 @t.set_cfg("statsd_flush_time", 0.5)
