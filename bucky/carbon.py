@@ -77,7 +77,7 @@ class CarbonClient(client.Client):
                         reconnect_delay *= self.backoff_factor
                         if self.backoff_max:
                             reconnect_delay = min(reconnect_delay, self.backoff_max)
-        raise socket.error("Failed to connect to %s:%s after %s attempts", self.ip, self.port, self.max_reconnects)
+        raise socket.error("Failed to connect to %s:%s after %s attempts" % (self.ip, self.port, self.max_reconnects))
 
     def reconnect(self):
         self.close()
