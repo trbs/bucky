@@ -1,6 +1,10 @@
 Bucky Changelog
 ===============
 
+Bucky 2.3.1:
+* [NEW] Add percentile thresholds config option
+
+
 Bucky 2.3.0:
 
 * [NEW] Sets
