@@ -211,6 +211,11 @@ config file::
     statsd_prefix_timer = "timers"
     statsd_prefix_gauge = "gauges"
 
+    # Timer thresholds
+    # Used to compute percentile values like:
+    # - stats.timers.my.awesome.timer.mean_90
+    statsd_percentile_thresholds = [90]
+
     # Basic Graphite configuration
     graphite_ip = "127.0.0.1"
     graphite_port = 2003
