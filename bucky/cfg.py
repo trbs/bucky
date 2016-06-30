@@ -53,6 +53,7 @@ statsd_delete_sets = True
 statsd_onlychanged_gauges = True
 # send gauge value to graphite only if there was a change
 
+statsd_percentile_thresholds = [90]  # percentile thresholds for statsd timers
 
 graphite_ip = "127.0.0.1"
 graphite_port = 2003

@@ -108,6 +108,8 @@ class StatsDHandler(threading.Thread):
         self.statsd_persistent_gauges = cfg.statsd_persistent_gauges
         self.gauges_filename = os.path.join(self.cfg.directory, self.cfg.statsd_gauges_savefile)
 
+        self.pct_thresholds = cfg.statsd_percentile_thresholds
+
         self.keys_seen = set()
         self.delete_idlestats = cfg.statsd_delete_idlestats
         self.delete_counters = self.delete_idlestats and cfg.statsd_delete_counters
@@ -179,8 +181,6 @@ class StatsDHandler(threading.Thread):
                 count = len(v)
                 vmin, vmax = v[0], v[-1]
 
-                pct_thresholds = [90]
-
                 cumulative_values = [vmin]
                 cumul_sum_squares_values = [vmin * vmin]
                 for i, value in enumerate(v):
@@ -190,7 +190,7 @@ class StatsDHandler(threading.Thread):
                     cumul_sum_squares_values.append(
                         value * value + cumul_sum_squares_values[i - 1])
 
-                for pct_thresh in pct_thresholds:
+                for pct_thresh in self.pct_thresholds:
                     thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
                     if thresh_idx == 0:
                         continue
