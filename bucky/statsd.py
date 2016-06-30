@@ -117,6 +117,16 @@ class StatsDHandler(threading.Thread):
         self.delete_sets = self.delete_idlestats and cfg.statsd_delete_sets
         self.onlychanged_gauges = self.delete_idlestats and cfg.statsd_onlychanged_gauges
 
+        self.enable_timer_mean = cfg.statsd_timer_mean
+        self.enable_timer_upper = cfg.statsd_timer_upper
+        self.enable_timer_lower = cfg.statsd_timer_lower
+        self.enable_timer_count = cfg.statsd_timer_count
+        self.enable_timer_count_ps = cfg.statsd_timer_count_ps
+        self.enable_timer_sum = cfg.statsd_timer_sum
+        self.enable_timer_sum_squares = cfg.statsd_timer_sum_squares
+        self.enable_timer_median = cfg.statsd_timer_median
+        self.enable_timer_std = cfg.statsd_timer_std
+
     def load_gauges(self):
         if not self.statsd_persistent_gauges:
             return
@@ -194,38 +204,61 @@ class StatsDHandler(threading.Thread):
                     thresh_idx = int(math.floor(pct_thresh / 100.0 * count))
                     if thresh_idx == 0:
                         continue
-                    vthresh = v[thresh_idx - 1]
                     vsum = cumulative_values[thresh_idx - 1]
-                    vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
-
-                    mean = vsum / float(thresh_idx)
 
                     t = int(pct_thresh)
-                    self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime)
-                    self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
-                    self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime)
-                    self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime)
-                    self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime)
+                    if self.enable_timer_mean:
+                        mean = vsum / float(thresh_idx)
+                        self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime)
+
+                    if self.enable_timer_upper:
+                        vthresh = v[thresh_idx - 1]
+                        self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
+
+                    if self.enable_timer_count:
+                        self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime)
+
+                    if self.enable_timer_sum:
+                        self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime)
+
+                    if self.enable_timer_sum_squares:
+                        vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
+                        self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime)
 
                 vsum = cumulative_values[count - 1]
-                vsum_squares = cumul_sum_squares_values[count - 1]
                 mean = vsum / float(count)
 
-                sum_of_diffs = sum(((value - mean) ** 2 for value in v))
+                if self.enable_timer_mean:
+                    self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
 
-                mid = int(count / 2)
-                median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
-                stddev = math.sqrt(sum_of_diffs / count)
+                if self.enable_timer_upper:
+                    self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
 
-                self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
-                self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
-                self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
-                self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
-                self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime)
-                self.enqueue("%s%s.median" % (self.name_timer, k), median, stime)
-                self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime)
-                self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime)
-                self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime)
+                if self.enable_timer_lower:
+                    self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
+
+                if self.enable_timer_count:
+                    self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
+
+                if self.enable_timer_count_ps:
+                    self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime)
+
+                if self.enable_timer_median:
+                    mid = int(count / 2)
+                    median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
+                    self.enqueue("%s%s.median" % (self.name_timer, k), median, stime)
+
+                if self.enable_timer_sum:
+                    self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime)
+
+                if self.enable_timer_sum_squares:
+                    vsum_squares = cumul_sum_squares_values[count - 1]
+                    self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime)
+
+                if self.enable_timer_std:
+                    sum_of_diffs = sum(((value - mean) ** 2 for value in v))
+                    stddev = math.sqrt(sum_of_diffs / count)
+                    self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime)
             self.timers[k] = []
             ret += 1
 
