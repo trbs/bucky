@@ -55,6 +55,16 @@ statsd_onlychanged_gauges = True
 
 statsd_percentile_thresholds = [90]  # percentile thresholds for statsd timers
 
+statsd_timer_mean = True
+statsd_timer_upper = True
+statsd_timer_lower = True
+statsd_timer_count = True
+statsd_timer_count_ps = True
+statsd_timer_sum = True
+statsd_timer_sum_squares = True
+statsd_timer_median = True
+statsd_timer_std = True
+
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
 graphite_max_reconnects = 60
