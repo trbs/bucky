@@ -253,7 +253,7 @@ def main():
 
 class Bucky(object):
     def __init__(self, cfg):
-        self.sampleq = multiprocessing.Queue()
+        self.sampleq = multiprocessing.Queue(cfg.max_sample_queue)
 
         stypes = []
         if cfg.metricsd_enabled:

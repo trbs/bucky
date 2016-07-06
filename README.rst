@@ -136,6 +136,11 @@ config file::
     # Valid log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
     log_level = "INFO"
 
+    # The size of the input queue 0 is no max size.
+    # this is useful to set if you are concern about bucky consuming to
+    # much memory if the downstream systems are offline
+    max_sample_queue = 0
+
     # Whether to print the entire stack trace for errors encountered
     # when loading the config file
     full_trace = False
