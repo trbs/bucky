@@ -8,3 +8,4 @@ bucky.egg-info/
 build/
 dist/
 .idea/
+.env/
