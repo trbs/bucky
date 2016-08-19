@@ -94,7 +94,8 @@ output::
     Usage: main.py [OPTIONS] [CONFIG_FILE]
     
     Options:
-      --debug               Put server into debug mode. [False]
+      --debug               Put server into dry-run debug mode where output
+                            goes to stdout instead of carbon. [False].
       --metricsd-ip=IP      IP address to bind for the MetricsD UDP socket
                             [127.0.0.1]
       --metricsd-port=INT   Port to bind for the MetricsD UDP socket [23632]
@@ -128,8 +129,10 @@ in both places, the command line takes priority. The defaults as a
 config file::
 
 
-    # Standard debug and log level
+    # Debug mode sends output only to stdout and not to carbon/graphite.
     debug = False
+
+    # Valid log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
     log_level = "INFO"
 
     # Whether to print the entire stack trace for errors encountered
