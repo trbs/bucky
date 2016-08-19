@@ -134,7 +134,7 @@ class CollectDTypes(object):
         name, spec = line.split(None, 1)
         self.types[name] = []
         self.type_ranges[name] = {}
-        vals = spec.split(", ")
+        vals = spec.translate(None, ",").split(" ")
         for val in vals:
             vname, vtype, minv, maxv = val.strip().split(":")
             vtype = types.get(vtype)
