@@ -58,7 +58,8 @@ def options():
         op.make_option(
             "--debug", dest="debug", default=False,
             action="store_true",
-            help="Put server into debug mode. [%default]"
+            help="Put server into dry-run debug mode where output"
+                 "goes to stdout instead of carbon. [False]. [%default]"
         ),
         op.make_option(
             "--metricsd-ip", dest="metricsd_ip", metavar="IP",
