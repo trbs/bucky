@@ -18,10 +18,10 @@ install:
   - sudo rm -rf /dev/shm
   - sudo ln -Tsf /{run,dev}/shm
   # install dependencies
-  - pip install -r requirements.txt --use-mirrors
-  - pip install "coverage>=3.6" "nose>=1.3.0" "flake8>=2.1" "coveralls>=0.3" --use-mirrors
+  - pip install -r requirements.txt
+  - pip install "coverage>=3.6" "nose>=1.3.0" "flake8>=2.1" "coveralls>=0.3"
   # install bucky
-  - pip install -e . --use-mirrors
+  - pip install -e .
 
 script:
   - flake8 --show-source --ignore=E501,E731,W391 .
