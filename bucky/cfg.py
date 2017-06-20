@@ -75,6 +75,10 @@ graphite_backoff_max = 60
 graphite_pickle_enabled = False
 graphite_pickle_buffer_size = 500
 
+influxdb_hosts = [
+    "127.0.0.1:8089"
+]
+
 full_trace = False
 
 name_prefix = None
