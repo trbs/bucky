@@ -89,12 +89,12 @@ class CarbonClient(client.Client):
         except:
             pass
 
-    def send(self, host, name, value, mtime):
+    def send(self, host, name, value, mtime, metadata=None):
         raise NotImplementedError()
 
 
 class PlaintextClient(CarbonClient):
-    def send(self, host, name, value, mtime):
+    def send(self, host, name, value, mtime, metadata=None):
         stat = names.statname(host, name)
         mesg = "%s %s %s\n" % (stat, value, mtime)
         for i in xrange(self.max_reconnects):
@@ -116,7 +116,7 @@ class PickleClient(CarbonClient):
         self.buffer_size = cfg.graphite_pickle_buffer_size
         self.buffer = []
 
-    def send(self, host, name, value, mtime):
+    def send(self, host, name, value, mtime, metadata=None):
         stat = names.statname(host, name)
         self.buffer.append((stat, (mtime, value)))
         if len(self.buffer) >= self.buffer_size:

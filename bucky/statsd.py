@@ -85,6 +85,7 @@ class StatsDHandler(threading.Thread):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
+        self.metadata = cfg.statsd_metadata
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
@@ -110,7 +111,7 @@ class StatsDHandler(threading.Thread):
 
         self.pct_thresholds = cfg.statsd_percentile_thresholds
 
-        self.keys_seen = set()
+        self.keys_seen = {}
         self.delete_idlestats = cfg.statsd_delete_idlestats
         self.delete_counters = self.delete_idlestats and cfg.statsd_delete_counters
         self.delete_timers = self.delete_idlestats and cfg.statsd_delete_timers
@@ -138,14 +139,17 @@ class StatsDHandler(threading.Thread):
         except IOError:
             log.exception("StatsD: IOError")
         else:
-            self.gauges.update(gauges)
-            self.keys_seen.update(gauges.keys())
+            self.gauges.update({k:gauges[k][0] for k in gauges.keys()})
+            self.keys_seen.update({k:gauges[k][1] for k in gauges.keys()})
 
     def save_gauges(self):
         if not self.statsd_persistent_gauges:
             return
         try:
-            write_json_file(self.gauges_filename, self.gauges)
+            gauges = {}
+            for k in self.gauges.keys():
+                gauges[k] = (self.gauges[k], self.keys_seen.get(k, None))
+            write_json_file(self.gauges_filename, gauges)
         except IOError:
             log.exception("StatsD: IOError")
 
@@ -156,27 +160,38 @@ class StatsDHandler(threading.Thread):
             stime = int(time.time())
             with self.lock:
                 if self.delete_timers:
-                    rem_keys = set(self.timers.keys()) - self.keys_seen
+                    rem_keys = set(self.timers.keys()) - set(self.keys_seen.keys())
                     for k in rem_keys:
                         del self.timers[k]
                 if self.delete_counters:
-                    rem_keys = set(self.counters.keys()) - self.keys_seen
+                    rem_keys = set(self.counters.keys()) - set(self.keys_seen.keys())
                     for k in rem_keys:
                         del self.counters[k]
                 if self.delete_sets:
-                    rem_keys = set(self.sets.keys()) - self.keys_seen
+                    rem_keys = set(self.sets.keys()) - set(self.keys_seen.keys())
                     for k in rem_keys:
                         del self.sets[k]
                 num_stats = self.enqueue_timers(stime)
+                kept_keys = set(self.timers.keys())
                 num_stats += self.enqueue_counters(stime)
+                kept_keys = kept_keys.union(set(self.counters.keys()))
                 num_stats += self.enqueue_gauges(stime)
+                kept_keys = kept_keys.union(set(self.gauges.keys()))
                 num_stats += self.enqueue_sets(stime)
+                kept_keys = kept_keys.union(set(self.sets.keys()))
                 self.enqueue(name_global_numstats, num_stats, stime)
-                self.keys_seen = set()
+                self.keys_seen = {k:self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
 
-    def enqueue(self, name, stat, stime):
+    def enqueue(self, name, stat, stime, metadata_key=None):
         # No hostnames on statsd
-        self.queue.put((None, name, stat, stime))
+        if metadata_key:
+            metadata = self.keys_seen.get(metadata_key, None)
+        else:
+            metadata = self.metadata
+        if metadata:
+            self.queue.put((None, name, stat, stime, metadata))
+        else:
+            self.queue.put((None, name, stat, stime))
 
     def enqueue_timers(self, stime):
         ret = 0
@@ -184,8 +199,8 @@ class StatsDHandler(threading.Thread):
         for k, v in iteritems:
             # Skip timers that haven't collected any values
             if not v:
-                self.enqueue("%s%s.count" % (self.name_timer, k), 0, stime)
-                self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime)
+                self.enqueue("%s%s.count" % (self.name_timer, k), 0, stime, k)
+                self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime, k)
             else:
                 v.sort()
                 count = len(v)
@@ -209,56 +224,56 @@ class StatsDHandler(threading.Thread):
                     t = int(pct_thresh)
                     if self.enable_timer_mean:
                         mean = vsum / float(thresh_idx)
-                        self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime)
+                        self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime, k)
 
                     if self.enable_timer_upper:
                         vthresh = v[thresh_idx - 1]
-                        self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime)
+                        self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime, k)
 
                     if self.enable_timer_count:
-                        self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime)
+                        self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime, k)
 
                     if self.enable_timer_sum:
-                        self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime)
+                        self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime, k)
 
                     if self.enable_timer_sum_squares:
                         vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
-                        self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime)
+                        self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime, k)
 
                 vsum = cumulative_values[count - 1]
                 mean = vsum / float(count)
 
                 if self.enable_timer_mean:
-                    self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime)
+                    self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime, k)
 
                 if self.enable_timer_upper:
-                    self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime)
+                    self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime, k)
 
                 if self.enable_timer_lower:
-                    self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime)
+                    self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime, k)
 
                 if self.enable_timer_count:
-                    self.enqueue("%s%s.count" % (self.name_timer, k), count, stime)
+                    self.enqueue("%s%s.count" % (self.name_timer, k), count, stime, k)
 
                 if self.enable_timer_count_ps:
-                    self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime)
+                    self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime, k)
 
                 if self.enable_timer_median:
                     mid = int(count / 2)
                     median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
-                    self.enqueue("%s%s.median" % (self.name_timer, k), median, stime)
+                    self.enqueue("%s%s.median" % (self.name_timer, k), median, stime, k)
 
                 if self.enable_timer_sum:
-                    self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime)
+                    self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime, k)
 
                 if self.enable_timer_sum_squares:
                     vsum_squares = cumul_sum_squares_values[count - 1]
-                    self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime)
+                    self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime, k)
 
                 if self.enable_timer_std:
                     sum_of_diffs = sum(((value - mean) ** 2 for value in v))
                     stddev = math.sqrt(sum_of_diffs / count)
-                    self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime)
+                    self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime, k)
             self.timers[k] = []
             ret += 1
 
@@ -268,7 +283,7 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
         for k, v in iteritems:
-            self.enqueue("%s%s.count" % (self.name_set, k), len(v), stime)
+            self.enqueue("%s%s.count" % (self.name_set, k), len(v), stime, k)
             ret += 1
             self.sets[k] = set()
         return ret
@@ -279,7 +294,7 @@ class StatsDHandler(threading.Thread):
         for k, v in iteritems:
             # only send a value if there was an update if `delete_idlestats` is `True`
             if not self.onlychanged_gauges or k in self.keys_seen:
-                self.enqueue("%s%s" % (self.name_gauge, k), v, stime)
+                self.enqueue("%s%s" % (self.name_gauge, k), v, stime, k)
                 ret += 1
         return ret
 
@@ -293,8 +308,8 @@ class StatsDHandler(threading.Thread):
             else:
                 stat_rate = "%s%s.rate" % (self.name_counter, k)
                 stat_count = "%s%s.count" % (self.name_counter, k)
-            self.enqueue(stat_rate, v / self.flush_time, stime)
-            self.enqueue(stat_count, v, stime)
+            self.enqueue(stat_rate, v / self.flush_time, stime, k)
+            self.enqueue(stat_count, v, stime, k)
             self.counters[k] = 0
             ret += 1
         return ret
@@ -309,9 +324,28 @@ class StatsDHandler(threading.Thread):
                 continue
             self.handle_line(line)
 
+    def handle_tags(self, line):
+        # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
+        bits = line.split("#")
+        if len(bits) < 2:
+            return line, None
+        tags = {}
+        for i in bits[1].split(","):
+            kv = i.split("=")
+            if len(kv) > 1:
+                tags[kv[0]] = kv[1]
+            else:
+                kv = i.split(":")
+                if len(kv) > 1:
+                    tags[kv[0]] = kv[1]
+                else:
+                    tags[kv[0]] = None
+        return bits[0], tags
+
     def handle_line(self, line):
+        line, tags = self.handle_tags(line)
         bits = line.split(":")
-        key = self.handle_key(bits.pop(0))
+        key = self.handle_key(bits.pop(0), tags)
 
         if not bits:
             self.bad_line()
@@ -335,10 +369,15 @@ class StatsDHandler(threading.Thread):
             else:
                 self.handle_counter(key, fields)
 
-    def handle_key(self, key):
+    def handle_key(self, key, tags=None):
+        if tags is None:
+            coalesced_tags = self.metadata
+        elif self.metadata:
+            coalesced_tags = dict(self.metadata)
+            coalesced_tags.update(tags)
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
-        self.keys_seen.add(key)
+        self.keys_seen[key] = coalesced_tags
         return key
 
     def handle_timer(self, key, fields):
