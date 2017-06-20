@@ -372,9 +372,10 @@ class StatsDHandler(threading.Thread):
     def handle_key(self, key, tags=None):
         if tags is None:
             coalesced_tags = self.metadata
-        elif self.metadata:
-            coalesced_tags = dict(self.metadata)
-            coalesced_tags.update(tags)
+        else:
+            coalesced_tags = tags
+            if self.metadata:
+                coalesced_tags.update(self.metadata)
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
         self.keys_seen[key] = coalesced_tags
