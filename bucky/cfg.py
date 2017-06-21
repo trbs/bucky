@@ -89,6 +89,10 @@ name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
 
+system_stats_enabled = True
+system_stats_interval = 1
+system_stats_metadata = None
+
 custom_clients = []
 
 processor = None

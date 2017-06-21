@@ -36,6 +36,7 @@ import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+import bucky.system as system
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -251,6 +252,8 @@ class Bucky(object):
             stypes.append(collectd.getCollectDServer)
         if cfg.statsd_enabled:
             stypes.append(statsd.StatsDServer)
+        if cfg.system_stats_enabled:
+            stypes.append(system.SystemStatsServer)
 
         self.servers = []
         for stype in stypes:
