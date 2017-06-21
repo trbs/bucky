@@ -22,7 +22,11 @@ class SystemStatsServer(multiprocessing.Process):
     def __init__(self, queue, cfg):
         super(SystemStatsServer, self).__init__()
         self.queue = queue
-        self.metadata = cfg.system_stats_metadata
+        self.metadata = {}
+        if cfg.metadata:
+            self.metadata.update(cfg.metadata)
+        if cfg.system_stats_metadata:
+            self.metadata.update(cfg.system_stats_metadata)
         self.interval = cfg.system_stats_interval
 
     def close(self):

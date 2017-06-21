@@ -19,7 +19,11 @@ class DockerStatsServer(multiprocessing.Process):
     def __init__(self, queue, cfg):
         super(DockerStatsServer, self).__init__()
         self.queue = queue
-        self.metadata = cfg.docker_stats_metadata
+        self.metadata = {}
+        if cfg.metadata:
+            self.metadata.update(cfg.metadata)
+        if cfg.docker_stats_metadata:
+            self.metadata.update(cfg.docker_stats_metadata)
         self.interval = cfg.docker_stats_interval
         self.docker_client = docker.client.from_env()
 
