@@ -139,8 +139,8 @@ class StatsDHandler(threading.Thread):
         except IOError:
             log.exception("StatsD: IOError")
         else:
-            self.gauges.update({k:gauges[k][0] for k in gauges.keys()})
-            self.keys_seen.update({k:gauges[k][1] for k in gauges.keys()})
+            self.gauges.update({k: gauges[k][0] for k in gauges.keys()})
+            self.keys_seen.update({k: gauges[k][1] for k in gauges.keys()})
 
     def save_gauges(self):
         if not self.statsd_persistent_gauges:
