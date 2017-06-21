@@ -149,30 +149,33 @@ class StatsDHandler(threading.Thread):
         except IOError:
             log.exception("StatsD: IOError")
 
-    def run(self):
+    def tick(self):
         name_global_numstats = self.name_global + "numStats"
+        stime = int(time.time())
+        with self.lock:
+            if self.delete_timers:
+                rem_keys = set(self.timers.keys()) - self.keys_seen
+                for k in rem_keys:
+                    del self.timers[k]
+            if self.delete_counters:
+                rem_keys = set(self.counters.keys()) - self.keys_seen
+                for k in rem_keys:
+                    del self.counters[k]
+            if self.delete_sets:
+                rem_keys = set(self.sets.keys()) - self.keys_seen
+                for k in rem_keys:
+                    del self.sets[k]
+            num_stats = self.enqueue_timers(stime)
+            num_stats += self.enqueue_counters(stime)
+            num_stats += self.enqueue_gauges(stime)
+            num_stats += self.enqueue_sets(stime)
+            self.enqueue(name_global_numstats, num_stats, stime)
+            self.keys_seen = set()
+
+    def run(self):
         while True:
             time.sleep(self.flush_time)
-            stime = int(time.time())
-            with self.lock:
-                if self.delete_timers:
-                    rem_keys = set(self.timers.keys()) - self.keys_seen
-                    for k in rem_keys:
-                        del self.timers[k]
-                if self.delete_counters:
-                    rem_keys = set(self.counters.keys()) - self.keys_seen
-                    for k in rem_keys:
-                        del self.counters[k]
-                if self.delete_sets:
-                    rem_keys = set(self.sets.keys()) - self.keys_seen
-                    for k in rem_keys:
-                        del self.sets[k]
-                num_stats = self.enqueue_timers(stime)
-                num_stats += self.enqueue_counters(stime)
-                num_stats += self.enqueue_gauges(stime)
-                num_stats += self.enqueue_sets(stime)
-                self.enqueue(name_global_numstats, num_stats, stime)
-                self.keys_seen = set()
+            self.tick()
 
     def enqueue(self, name, stat, stime):
         # No hostnames on statsd
