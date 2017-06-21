@@ -153,34 +153,37 @@ class StatsDHandler(threading.Thread):
         except IOError:
             log.exception("StatsD: IOError")
 
-    def run(self):
+    def tick(self):
         name_global_numstats = self.name_global + "numStats"
+        stime = int(time.time())
+        with self.lock:
+            if self.delete_timers:
+                rem_keys = set(self.timers.keys()) - set(self.keys_seen.keys())
+                for k in rem_keys:
+                    del self.timers[k]
+            if self.delete_counters:
+                rem_keys = set(self.counters.keys()) - set(self.keys_seen.keys())
+                for k in rem_keys:
+                    del self.counters[k]
+            if self.delete_sets:
+                rem_keys = set(self.sets.keys()) - set(self.keys_seen.keys())
+                for k in rem_keys:
+                    del self.sets[k]
+            num_stats = self.enqueue_timers(stime)
+            kept_keys = set(self.timers.keys())
+            num_stats += self.enqueue_counters(stime)
+            kept_keys = kept_keys.union(set(self.counters.keys()))
+            num_stats += self.enqueue_gauges(stime)
+            kept_keys = kept_keys.union(set(self.gauges.keys()))
+            num_stats += self.enqueue_sets(stime)
+            kept_keys = kept_keys.union(set(self.sets.keys()))
+            self.enqueue(name_global_numstats, num_stats, stime)
+            self.keys_seen = {k: self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
+
+    def run(self):
         while True:
             time.sleep(self.flush_time)
-            stime = int(time.time())
-            with self.lock:
-                if self.delete_timers:
-                    rem_keys = set(self.timers.keys()) - set(self.keys_seen.keys())
-                    for k in rem_keys:
-                        del self.timers[k]
-                if self.delete_counters:
-                    rem_keys = set(self.counters.keys()) - set(self.keys_seen.keys())
-                    for k in rem_keys:
-                        del self.counters[k]
-                if self.delete_sets:
-                    rem_keys = set(self.sets.keys()) - set(self.keys_seen.keys())
-                    for k in rem_keys:
-                        del self.sets[k]
-                num_stats = self.enqueue_timers(stime)
-                kept_keys = set(self.timers.keys())
-                num_stats += self.enqueue_counters(stime)
-                kept_keys = kept_keys.union(set(self.counters.keys()))
-                num_stats += self.enqueue_gauges(stime)
-                kept_keys = kept_keys.union(set(self.gauges.keys()))
-                num_stats += self.enqueue_sets(stime)
-                kept_keys = kept_keys.union(set(self.sets.keys()))
-                self.enqueue(name_global_numstats, num_stats, stime)
-                self.keys_seen = {k:self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
+            self.tick()
 
     def enqueue(self, name, stat, stime, metadata_key=None):
         # No hostnames on statsd

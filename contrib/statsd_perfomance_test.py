@@ -34,16 +34,31 @@ def fill_and_compute_timers(handler):
         queue.get()
 
 
+def line_parsing_stress(handler):
+    # Fill timers
+    for x in l100:  # timer name
+        for y in l1000:  # timer value, using random value is not good idea there
+            handler.handle_line("gauge-%s:%s|g" % (x, y))
+        handler.tick()
+
+    # Clear queue
+    while not queue.empty():
+        queue.get()
+
+
 # Warmup
 print("Warmup")
 for i in l10:
     fill_and_compute_timers(handler)
+    line_parsing_stress(handler)
 
 print("Test")
-trun = timeit.timeit('fill_and_compute_timers(handler)',
-                     'from __main__ import fill_and_compute_timers, handler',
+# trun = timeit.timeit('fill_and_compute_timers(handler)',
+#                      'from __main__ import fill_and_compute_timers, handler',
+#                      number=100)
+trun = timeit.timeit('line_parsing_stress(handler)',
+                     'from __main__ import line_parsing_stress, handler',
                      number=100)
-
 print("Result:", trun)
 
 queue.close
