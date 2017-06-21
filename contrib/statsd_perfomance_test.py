@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
-import multiprocessing
-import bucky.statsd
+from __future__ import print_function
+
 import time
 import timeit
+import platform
+import multiprocessing
+
+import bucky.statsd
 
 l10 = range(10)
 l100 = range(100)
@@ -46,4 +50,15 @@ trun = timeit.timeit('fill_and_compute_timers(handler)',
 
 print("Result:", trun)
 
-queue.close
+if platform.system() in ("Darwin", ):
+    qsize = 0
+    while not queue.empty():
+        qsize += 1
+        queue.get()
+else:
+    qsize = queue.qsize()
+
+if qsize:
+    print("Queue did not drain properly, left:", qsize)
+
+queue.cancel_join_thread()
