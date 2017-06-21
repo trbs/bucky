@@ -44,5 +44,5 @@ class Client(multiprocessing.Process):
                 break
             self.send(*sample)
 
-    def send(self, host, name, value, time):
+    def send(self, host, name, value, time, metadata=None):
         raise NotImplementedError()

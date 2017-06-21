@@ -34,6 +34,7 @@ statsd_ip = "127.0.0.1"
 statsd_port = 8125
 statsd_enabled = True
 statsd_flush_time = 10.0
+statsd_metadata = {}
 statsd_legacy_namespace = True
 statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
