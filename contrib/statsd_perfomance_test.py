@@ -35,9 +35,8 @@ def fill_and_compute_timers(handler):
 
 
 def line_parsing_stress(handler):
-    # Fill timers
-    for x in l100:  # timer name
-        for y in l1000:  # timer value, using random value is not good idea there
+    for x in l100:  # name
+        for y in l1000:  # value
             handler.handle_line("gauge-%s:%s|g" % (x, y))
         handler.tick()
 
@@ -53,9 +52,10 @@ for i in l10:
     line_parsing_stress(handler)
 
 print("Test")
-# trun = timeit.timeit('fill_and_compute_timers(handler)',
-#                      'from __main__ import fill_and_compute_timers, handler',
-#                      number=100)
+trun = timeit.timeit('fill_and_compute_timers(handler)',
+                     'from __main__ import fill_and_compute_timers, handler',
+                     number=100)
+print("Result:", trun)
 trun = timeit.timeit('line_parsing_stress(handler)',
                      'from __main__ import line_parsing_stress, handler',
                      number=100)
