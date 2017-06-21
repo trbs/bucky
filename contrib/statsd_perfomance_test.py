@@ -33,16 +33,17 @@ def fill_and_compute_timers(handler):
     while not queue.empty():
         queue.get()
 
+
 # Warmup
 print("Warmup")
 for i in l10:
     fill_and_compute_timers(handler)
 
 print("Test")
-time = timeit.timeit('fill_and_compute_timers(handler)',
+trun = timeit.timeit('fill_and_compute_timers(handler)',
                      'from __main__ import fill_and_compute_timers, handler',
                      number=100)
 
-print("Result:", time)
+print("Result:", trun)
 
 queue.close
