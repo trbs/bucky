@@ -93,6 +93,10 @@ system_stats_enabled = True
 system_stats_interval = 1
 system_stats_metadata = None
 
+docker_stats_enabled = True
+docker_stats_interval = 1
+docker_stats_metadata = None
+
 custom_clients = []
 
 processor = None

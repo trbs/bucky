@@ -37,6 +37,7 @@ import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
 import bucky.system as system
+import bucky.dockerstats as dockerstats
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -254,6 +255,8 @@ class Bucky(object):
             stypes.append(statsd.StatsDServer)
         if cfg.system_stats_enabled:
             stypes.append(system.SystemStatsServer)
+        if cfg.docker_stats_enabled:
+            stypes.append(dockerstats.DockerStatsServer)
 
         self.servers = []
         for stype in stypes:
