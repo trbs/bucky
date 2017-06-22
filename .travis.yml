@@ -11,7 +11,11 @@ python:
   - 3.5
   - 3.6
   - pypy
-  - pypy3.5-5.7.1-beta
+  - pypy3.3-5.5-alpha
+
+matrix:
+  allow_failures:
+  - python: pypy3.3-5.5-alpha
 
 install:
   # workaround for travis build vm's and multiprocessing
