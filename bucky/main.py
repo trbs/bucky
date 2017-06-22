@@ -148,6 +148,7 @@ def options():
             type="str", default=cfg.gid,
             help="Drop privileges to this group"
         ),
+        op.make_option("--label", action="append", dest="labels")
     ]
 
 
@@ -245,6 +246,20 @@ def main():
 class Bucky(object):
     def __init__(self, cfg):
         self.sampleq = multiprocessing.Queue()
+
+        if cfg.labels:
+            if not cfg.metadata:
+                cfg.metadata = {}
+            for label in cfg.labels:
+                kv = label.split("=")
+                if len(kv) > 1:
+                    cfg.metadata[kv[0]] = kv[1]
+                else:
+                    kv = label.split(":")
+                    if len(kv) > 1:
+                        cfg.metadata[kv[0]] = kv[1]
+                    else:
+                        cfg.metadata[kv[0]] = None
 
         stypes = []
         if cfg.metricsd_enabled:
