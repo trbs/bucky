@@ -85,7 +85,11 @@ class StatsDHandler(threading.Thread):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
-        self.metadata = cfg.statsd_metadata
+        self.metadata = {}
+        if cfg.metadata:
+            self.metadata.update(cfg.metadata)
+        if cfg.system_stats_metadata:
+            self.metadata.update(cfg.system_stats_metadata)
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
