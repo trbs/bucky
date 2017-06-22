@@ -93,8 +93,10 @@ class DockerStatsServer(multiprocessing.Process):
 
     def read_docker_stats(self):
         now = int(time.time())
-        for container in self.docker_client.api.containers(size=True):
+        for i, container in enumerate(self.docker_client.api.containers(size=True)):
             labels = container[u'Labels']
+            if 'instance' not in labels:
+                labels['instance'] = i
             stats = self.docker_client.api.stats(container[u'Id'], decode=True, stream=False)
             self._add_df_stats(now, labels, long(container[u'SizeRootFs']), long(container.get(u'SizeRw', 0)))
             self._add_cpu_stats(now, labels, stats[u'cpu_stats'][u'cpu_usage'])
