@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 
 import six
+import requests.exceptions
 
 
 if six.PY3:
@@ -31,11 +32,15 @@ class DockerStatsServer(multiprocessing.Process):
         pass
 
     def run(self):
+        err = 0
         while True:
             start_timestamp = time.time()
-            self.read_docker_stats()
+            if not self.read_docker_stats():
+                err = min(err + 1, 2)
+            else:
+                err = 0
             stop_timestamp = time.time()
-            sleep_time = self.interval - (stop_timestamp - start_timestamp)
+            sleep_time = (err + 1) * self.interval - (stop_timestamp - start_timestamp)
             if sleep_time > 0.1:
                 time.sleep(sleep_time)
 
@@ -93,12 +98,16 @@ class DockerStatsServer(multiprocessing.Process):
 
     def read_docker_stats(self):
         now = int(time.time())
-        for i, container in enumerate(self.docker_client.api.containers(size=True)):
-            labels = container[u'Labels']
-            if 'docker' not in labels:
-                labels['docker'] = i
-            stats = self.docker_client.api.stats(container[u'Id'], decode=True, stream=False)
-            self._add_df_stats(now, labels, long(container[u'SizeRootFs']), long(container.get(u'SizeRw', 0)))
-            self._add_cpu_stats(now, labels, stats[u'cpu_stats'][u'cpu_usage'])
-            self._add_memory_stats(now, labels, stats[u'memory_stats'])
-            self._add_interface_stats(now, labels, stats[u'networks'])
+        try:
+            for i, container in enumerate(self.docker_client.api.containers(size=True)):
+                labels = container[u'Labels']
+                if 'docker' not in labels:
+                    labels['docker'] = i
+                stats = self.docker_client.api.stats(container[u'Id'], decode=True, stream=False)
+                self._add_df_stats(now, labels, long(container[u'SizeRootFs']), long(container.get(u'SizeRw', 0)))
+                self._add_cpu_stats(now, labels, stats[u'cpu_stats'][u'cpu_usage'])
+                self._add_memory_stats(now, labels, stats[u'memory_stats'])
+                self._add_interface_stats(now, labels, stats[u'networks'])
+            return True
+        except requests.exceptions.ConnectionError:
+            return False
