@@ -9,8 +9,13 @@ python:
   - 3.3
   - 3.4
   - 3.5
+  - 3.6
   - pypy
-  - pypy3
+  - pypy3.3-5.5-alpha
+
+matrix:
+  allow_failures:
+  - python: pypy3.3-5.5-alpha
 
 install:
   # workaround for travis build vm's and multiprocessing
@@ -30,6 +35,7 @@ script:
   - nosetests -v --with-coverage tests/test_002_collectd.py
   - nosetests -v --with-coverage tests/test_003_processor.py
   - nosetests -v --with-coverage tests/test_004_helpers.py
+  - PYTHONPATH="." python contrib/statsd_perfomance_test.py
 
 after_success:
   - coveralls
