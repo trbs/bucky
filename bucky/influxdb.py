@@ -94,7 +94,7 @@ class InfluxDBClient(client.Client):
             for k in metadata.keys():
                 v = metadata[k]
                 # InfluxDB will drop insert with tags without values
-                if v:
+                if v is not None:
                     buf.append(self.kv(k, v))
         # https://docs.influxdata.com/influxdb/v1.2/write_protocols/line_protocol_tutorial/
         line = ' '.join((','.join(buf), self.kv('value', value), str(long(mtime) * 1000000000)))
