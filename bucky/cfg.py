@@ -93,12 +93,14 @@ name_strip_duplicates = True
 name_host_trim = []
 
 system_stats_enabled = True
-system_stats_interval = 1
+system_stats_interval = 10
 system_stats_metadata = None
+system_stats_df_ignored = ['tmpfs', 'aufs']
 
 docker_stats_enabled = True
-docker_stats_interval = 1
+docker_stats_interval = 10
 docker_stats_metadata = None
+docker_stats_version = None
 
 custom_clients = []
 

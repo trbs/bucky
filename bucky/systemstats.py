@@ -28,6 +28,9 @@ class SystemStatsServer(multiprocessing.Process):
         if cfg.system_stats_metadata:
             self.metadata.update(cfg.system_stats_metadata)
         self.interval = cfg.system_stats_interval
+        self.ignored_filesystems = set()
+        if cfg.system_stats_df_ignored:
+            self.ignored_filesystems.update(cfg.system_stats_df_ignored)
 
     def close(self):
         pass
@@ -88,6 +91,8 @@ class SystemStatsServer(multiprocessing.Process):
                 if not tokens[1].startswith('/'):
                     continue
                 mount_target, mount_path, mount_filesystem = tokens[:3]
+                if mount_filesystem in self.ignored_filesystems:
+                    continue
                 try:
                     stats = os.statvfs(mount_path)
                     total_inodes = long(stats.f_files)
