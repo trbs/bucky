@@ -328,7 +328,7 @@ Configuring InfluxDB
 --------------------
 
 Make sure that your InfluxDB server(s) have a UDP listener enabled,
-like so:
+like so::
 
     [[udp]]
       enabled = true
