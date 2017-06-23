@@ -128,11 +128,11 @@ class SystemStatsServer(multiprocessing.Process):
                 self.add_stat("interface", long(tokens[1]), now, dict(instance=name, direction="rx", type="bytes"))
                 self.add_stat("interface", long(tokens[2]), now, dict(instance=name, direction="rx", type="packets"))
                 self.add_stat("interface", long(tokens[3]), now, dict(instance=name, direction="rx", type="errors"))
-                self.add_stat("interface", long(tokens[4]), now, dict(instance=name, direction="rx", type="drops"))
+                self.add_stat("interface", long(tokens[4]), now, dict(instance=name, direction="rx", type="dropped"))
                 self.add_stat("interface", long(tokens[9]), now, dict(instance=name, direction="tx", type="bytes"))
                 self.add_stat("interface", long(tokens[10]), now, dict(instance=name, direction="tx", type="packets"))
                 self.add_stat("interface", long(tokens[11]), now, dict(instance=name, direction="tx", type="errors"))
-                self.add_stat("interface", long(tokens[12]), now, dict(instance=name, direction="tx", type="drops"))
+                self.add_stat("interface", long(tokens[12]), now, dict(instance=name, direction="tx", type="dropped"))
 
     def read_load_stats(self):
         now = int(time.time())

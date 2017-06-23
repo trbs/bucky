@@ -85,7 +85,7 @@ class DockerStatsServer(multiprocessing.Process):
             self.add_stat("docker_interface", long(v[u'rx_errors']), now,
                           self._merge(labels, dict(instance=k, direction="rx", type="errors")))
             self.add_stat("docker_interface", long(v[u'rx_dropped']), now,
-                          self._merge(labels, dict(instance=k, direction="rx", type="drops")))
+                          self._merge(labels, dict(instance=k, direction="rx", type="dropped")))
             self.add_stat("docker_interface", long(v[u'tx_bytes']), now,
                           self._merge(labels, dict(instance=k, direction="tx", type="bytes")))
             self.add_stat("docker_interface", long(v[u'tx_packets']), now,
@@ -93,7 +93,7 @@ class DockerStatsServer(multiprocessing.Process):
             self.add_stat("docker_interface", long(v[u'tx_errors']), now,
                           self._merge(labels, dict(instance=k, direction="tx", type="errors")))
             self.add_stat("docker_interface", long(v[u'tx_dropped']), now,
-                          self._merge(labels, dict(instance=k, direction="tx", type="drops")))
+                          self._merge(labels, dict(instance=k, direction="tx", type="dropped")))
 
     def _add_memory_stats(self, now, labels, stats):
         self.add_stat("docker_memory", long(stats[u'usage']), now,
@@ -104,8 +104,8 @@ class DockerStatsServer(multiprocessing.Process):
         try:
             for i, container in enumerate(self.docker_client.api.containers(size=True)):
                 labels = container[u'Labels']
-                if 'docker' not in labels:
-                    labels['docker'] = i
+                if 'container_id' not in labels:
+                    labels['container_id'] = container[u'Id'][:12]
                 stats = self.docker_client.api.stats(container[u'Id'], decode=True, stream=False)
                 self._add_df_stats(now, labels, long(container[u'SizeRootFs']), long(container.get(u'SizeRw', 0)))
                 self._add_cpu_stats(now, labels, stats[u'cpu_stats'][u'cpu_usage'])

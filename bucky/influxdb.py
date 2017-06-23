@@ -72,9 +72,9 @@ class InfluxDBClient(client.Client):
     def kv(self, k, v):
         return str(k) + '=' + str(v)
 
-    def flush(self):
+    def tick(self):
         now = time.time()
-        if len(self.buffer) > 30 or (now - self.flush_timestamp) > 3:
+        if len(self.buffer) > 30 or ((now - self.flush_timestamp) > 1 and len(self.buffer)):
             payload = '\n'.join(self.buffer).encode()
             self.resolve_hosts()
             for ip, port in self.resolved_hosts:
@@ -99,4 +99,4 @@ class InfluxDBClient(client.Client):
         # https://docs.influxdata.com/influxdb/v1.2/write_protocols/line_protocol_tutorial/
         line = ' '.join((','.join(buf), self.kv('value', value), str(long(mtime) * 1000000000)))
         self.buffer.append(line)
-        self.flush()
+        self.tick()

@@ -135,6 +135,16 @@ def options():
             help="Enable the InfluxDB line protocol client"
         ),
         op.make_option(
+            "--enable-system-stats", dest="system_stats_enabled",
+            default=cfg.system_stats_enabled, action="store_true",
+            help="Enable collection of local system stats"
+        ),
+        op.make_option(
+            "--enable-docker-stats", dest="docker_stats_enabled",
+            default=cfg.docker_stats_enabled, action="store_true",
+            help="Enable collection of docker containers stats"
+        ),
+        op.make_option(
             "--full-trace", dest="full_trace",
             default=cfg.full_trace, action="store_true",
             help="Display full error if config file fails to load"
@@ -250,6 +260,20 @@ def main():
         except:
             log.exception("Could not create directory: %s" % cfg.directory)
 
+    if cfg.labels:
+        if not cfg.metadata:
+            cfg.metadata = {}
+        for label in cfg.labels:
+            kv = label.split("=")
+            if len(kv) > 1:
+                cfg.metadata[kv[0]] = kv[1]
+            else:
+                kv = label.split(":")
+                if len(kv) > 1:
+                    cfg.metadata[kv[0]] = kv[1]
+                else:
+                    cfg.metadata[kv[0]] = None
+
     bucky = Bucky(cfg)
     bucky.run()
 
@@ -257,20 +281,6 @@ def main():
 class Bucky(object):
     def __init__(self, cfg):
         self.sampleq = multiprocessing.Queue()
-
-        if cfg.labels:
-            if not cfg.metadata:
-                cfg.metadata = {}
-            for label in cfg.labels:
-                kv = label.split("=")
-                if len(kv) > 1:
-                    cfg.metadata[kv[0]] = kv[1]
-                else:
-                    kv = label.split(":")
-                    if len(kv) > 1:
-                        cfg.metadata[kv[0]] = kv[1]
-                    else:
-                        cfg.metadata[kv[0]] = None
 
         stypes = []
         if cfg.metricsd_enabled:
@@ -296,18 +306,18 @@ class Bucky(object):
             self.proc = None
             self.psampleq = self.sampleq
 
-        default_clients = []
+        requested_clients = []
         if cfg.graphite_enabled:
             if cfg.graphite_pickle_enabled:
                 carbon_client = carbon.PickleClient
             else:
                 carbon_client = carbon.PlaintextClient
-            default_clients.append(carbon_client)
+            requested_clients.append(carbon_client)
         if cfg.influxdb_enabled:
-            default_clients.append(influxdb.InfluxDBClient)
+            requested_clients.append(influxdb.InfluxDBClient)
 
         self.clients = []
-        for client in cfg.custom_clients + default_clients:
+        for client in requested_clients:
             send, recv = multiprocessing.Pipe()
             instance = client(cfg, recv)
             self.clients.append((instance, send))

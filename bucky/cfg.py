@@ -7,6 +7,7 @@ gid = None
 directory = "/var/lib/bucky"
 process_join_timeout = 2
 
+labels = []
 metadata = None
 
 sentry_enabled = False
@@ -93,17 +94,15 @@ name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
 
-system_stats_enabled = True
+system_stats_enabled = False
 system_stats_interval = 10
 system_stats_metadata = None
 system_stats_df_ignored = ['tmpfs', 'aufs', 'rootfs', 'devtmpfs']
 
-docker_stats_enabled = True
+docker_stats_enabled = False
 docker_stats_interval = 10
 docker_stats_metadata = None
-docker_stats_version = None
-
-custom_clients = []
+docker_stats_version = '1.22'
 
 processor = None
 processor_drop_on_error = False

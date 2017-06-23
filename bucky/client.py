@@ -37,6 +37,9 @@ class Client(multiprocessing.Process):
         setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             try:
+                if not self.pipe.poll(1):
+                    self.tick()
+                    continue
                 sample = self.pipe.recv()
             except KeyboardInterrupt:
                 continue
@@ -46,3 +49,6 @@ class Client(multiprocessing.Process):
 
     def send(self, host, name, value, time, metadata=None):
         raise NotImplementedError()
+
+    def tick(self):
+        pass
