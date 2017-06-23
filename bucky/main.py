@@ -125,6 +125,11 @@ def options():
             help="Port of the Graphite/Carbon server [%default]"
         ),
         op.make_option(
+            "--disable-graphite", dest="graphite_enabled",
+            default=cfg.graphite_enabled, action="store_false",
+            help="Disable the Graphite/Carbon client"
+        ),
+        op.make_option(
             "--enable-influxdb", dest="influxdb_enabled",
             default=cfg.influxdb_enabled, action="store_true",
             help="Enable the InfluxDB line protocol client"
@@ -291,12 +296,13 @@ class Bucky(object):
             self.proc = None
             self.psampleq = self.sampleq
 
-        if cfg.graphite_pickle_enabled:
-            carbon_client = carbon.PickleClient
-        else:
-            carbon_client = carbon.PlaintextClient
-
-        default_clients = [carbon_client]
+        default_clients = []
+        if cfg.graphite_enabled:
+            if cfg.graphite_pickle_enabled:
+                carbon_client = carbon.PickleClient
+            else:
+                carbon_client = carbon.PlaintextClient
+            default_clients.append(carbon_client)
         if cfg.influxdb_enabled:
             default_clients.append(influxdb.InfluxDBClient)
 
