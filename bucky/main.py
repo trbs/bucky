@@ -38,6 +38,7 @@ import bucky.metricsd as metricsd
 import bucky.statsd as statsd
 import bucky.systemstats as systemstats
 import bucky.dockerstats as dockerstats
+import bucky.influxdb as influxdb
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -122,6 +123,11 @@ def options():
             "--graphite-port", dest="graphite_port", metavar="INT",
             type="int", default=cfg.graphite_port,
             help="Port of the Graphite/Carbon server [%default]"
+        ),
+        op.make_option(
+            "--enable-influxdb", dest="influxdb_enabled",
+            default=cfg.influxdb_enabled, action="store_true",
+            help="Enable the InfluxDB line protocol client"
         ),
         op.make_option(
             "--full-trace", dest="full_trace",
@@ -290,8 +296,12 @@ class Bucky(object):
         else:
             carbon_client = carbon.PlaintextClient
 
+        default_clients = [carbon_client]
+        if cfg.influxdb_enabled:
+            default_clients.append(influxdb.InfluxDBClient)
+
         self.clients = []
-        for client in cfg.custom_clients + [carbon_client]:
+        for client in cfg.custom_clients + default_clients:
             send, recv = multiprocessing.Pipe()
             instance = client(cfg, recv)
             self.clients.append((instance, send))
