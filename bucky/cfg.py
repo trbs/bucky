@@ -66,6 +66,7 @@ statsd_timer_sum_squares = True
 statsd_timer_median = True
 statsd_timer_std = True
 
+graphite_enabled = True
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
 graphite_max_reconnects = 60
