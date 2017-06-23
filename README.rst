@@ -250,6 +250,11 @@ config file::
     graphite_backoff_factor = 1.5
     graphite_backoff_max = 60
 
+    influxdb_enabled = False
+    influxdb_hosts = [
+        "127.0.0.1:8089"
+    ]
+
     # Configuration for sending metrics to Graphite via the pickle
     # interface. Be sure to edit graphite_port to match the settings
     # on your Graphite cache/relay.
@@ -325,10 +330,10 @@ Configuring InfluxDB
 Make sure that your InfluxDB server(s) have a UDP listener enabled,
 like so:
 
-   [[udp]]
-     enabled = true
-     bind-address = ":8089"
-     database = "mydatabase"
+    [[udp]]
+      enabled = true
+      bind-address = ":8089"
+      database = "mydatabase"
 
 Bucky will periodically resolve all hostnames in the `influxdb_hosts`
 list and fan out metrics to all resolved endpoints. Thus providing
