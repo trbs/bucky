@@ -26,7 +26,10 @@ class DockerStatsServer(multiprocessing.Process):
         if cfg.docker_stats_metadata:
             self.metadata.update(cfg.docker_stats_metadata)
         self.interval = cfg.docker_stats_interval
-        self.docker_client = docker.client.from_env()
+        if cfg.docker_stats_version:
+            self.docker_client = docker.client.from_env(version=cfg.docker_stats_version)
+        else:
+            self.docker_client = docker.client.from_env()
 
     def close(self):
         pass
@@ -110,4 +113,6 @@ class DockerStatsServer(multiprocessing.Process):
                 self._add_interface_stats(now, labels, stats[u'networks'])
             return True
         except requests.exceptions.ConnectionError:
+            return False
+        except ValueError:
             return False
