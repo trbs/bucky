@@ -95,7 +95,7 @@ name_host_trim = []
 system_stats_enabled = True
 system_stats_interval = 10
 system_stats_metadata = None
-system_stats_df_ignored = ['tmpfs', 'aufs']
+system_stats_df_ignored = ['tmpfs', 'aufs', 'rootfs', 'devtmpfs']
 
 docker_stats_enabled = True
 docker_stats_interval = 10
