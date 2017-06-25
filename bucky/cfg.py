@@ -66,6 +66,7 @@ statsd_timer_sum_squares = True
 statsd_timer_median = True
 statsd_timer_std = True
 
+graphite_enabled = True
 graphite_ip = "127.0.0.1"
 graphite_port = 2003
 graphite_max_reconnects = 60
@@ -74,6 +75,11 @@ graphite_backoff_factor = 1.5
 graphite_backoff_max = 60
 graphite_pickle_enabled = False
 graphite_pickle_buffer_size = 500
+
+influxdb_enabled = False
+influxdb_hosts = [
+    "127.0.0.1:8089"
+]
 
 full_trace = False
 

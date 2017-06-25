@@ -36,6 +36,7 @@ import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+import bucky.influxdb as influxdb
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -120,6 +121,16 @@ def options():
             "--graphite-port", dest="graphite_port", metavar="INT",
             type="int", default=cfg.graphite_port,
             help="Port of the Graphite/Carbon server [%default]"
+        ),
+        op.make_option(
+            "--disable-graphite", dest="graphite_enabled",
+            default=cfg.graphite_enabled, action="store_false",
+            help="Disable the Graphite/Carbon client"
+        ),
+        op.make_option(
+            "--enable-influxdb", dest="influxdb_enabled",
+            default=cfg.influxdb_enabled, action="store_true",
+            help="Enable the InfluxDB line protocol client"
         ),
         op.make_option(
             "--full-trace", dest="full_trace",
@@ -264,13 +275,18 @@ class Bucky(object):
             self.proc = None
             self.psampleq = self.sampleq
 
-        if cfg.graphite_pickle_enabled:
-            carbon_client = carbon.PickleClient
-        else:
-            carbon_client = carbon.PlaintextClient
+        default_clients = []
+        if cfg.graphite_enabled:
+            if cfg.graphite_pickle_enabled:
+                carbon_client = carbon.PickleClient
+            else:
+                carbon_client = carbon.PlaintextClient
+            default_clients.append(carbon_client)
+        if cfg.influxdb_enabled:
+            default_clients.append(influxdb.InfluxDBClient)
 
         self.clients = []
-        for client in cfg.custom_clients + [carbon_client]:
+        for client in cfg.custom_clients + default_clients:
             send, recv = multiprocessing.Pipe()
             instance = client(cfg, recv)
             self.clients.append((instance, send))

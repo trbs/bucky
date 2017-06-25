@@ -113,6 +113,7 @@ output::
       --disable-statsd      Disable the StatsD server
       --graphite-ip=IP      IP address of the Graphite/Carbon server [127.0.0.1]
       --graphite-port=INT   Port of the Graphite/Carbon server [2003]
+      --enable-influxdb     Enable InfluxDB client
       --full-trace          Display full error if config file fails to load
       --log-level=NAME      Logging output verbosity [INFO]
       --version             show program's version number and exit
@@ -249,6 +250,11 @@ config file::
     graphite_backoff_factor = 1.5
     graphite_backoff_max = 60
 
+    influxdb_enabled = False
+    influxdb_hosts = [
+        "127.0.0.1:8089"
+    ]
+
     # Configuration for sending metrics to Graphite via the pickle
     # interface. Be sure to edit graphite_port to match the settings
     # on your Graphite cache/relay.
@@ -316,6 +322,22 @@ Configuring MetricsD
 --------------------
 
 TODO
+
+
+Configuring InfluxDB
+--------------------
+
+Make sure that your InfluxDB server(s) have a UDP listener enabled,
+like so::
+
+    [[udp]]
+      enabled = true
+      bind-address = ":8089"
+      database = "mydatabase"
+
+Bucky will periodically resolve all hostnames in the `influxdb_hosts`
+list and fan out metrics to all resolved endpoints. Thus providing
+replication as well as hot swapping.
 
 
 A note on CollectD converters
