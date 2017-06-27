@@ -43,6 +43,7 @@ class SystemStatsServer(multiprocessing.Process):
             self.read_df_stats()
             self.read_memory_stats()
             self.read_interface_stats()
+            self.read_disk_stats()
             stop_timestamp = time.time()
             sleep_time = self.interval - (stop_timestamp - start_timestamp)
             if sleep_time > 0.1:
@@ -170,3 +171,30 @@ class SystemStatsServer(multiprocessing.Process):
                     memory_stats['available_bytes'] = long(tokens[1]) * 1024
             if memory_stats:
                 self.add_stat("memory", memory_stats, now, metadata=None)
+
+    def read_disk_stats(self):
+        now = int(time.time())
+        with open('/proc/diskstats') as f:
+            for l in f.readlines():
+                tokens = l.strip().split()
+                if not tokens or len(tokens) != 14:
+                    continue
+                name = tokens[2]
+                disk_stats = {
+                    'read_ops': long(tokens[3]),
+                    'read_merged': long(tokens[4]),
+                    'read_sectors': long(tokens[5]),
+                    'read_bytes': long(tokens[5]) * 512,
+                    'read_time': long(tokens[6]),
+
+                    'write_ops': long(tokens[7]),
+                    'write_merged': long(tokens[8]),
+                    'write_sectors': long(tokens[9]),
+                    'write_bytes': long(tokens[9]) * 512,
+                    'write_time': long(tokens[10]),
+
+                    'in_progress': long(tokens[11]),
+                    'io_time': long(tokens[12]),
+                    'weighted_time': long(tokens[13])
+                }
+                self.add_stat("disk", disk_stats, now, metadata=dict(instance=name))

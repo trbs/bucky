@@ -74,7 +74,7 @@ class InfluxDBClient(client.Client):
 
     def tick(self):
         now = time.time()
-        if len(self.buffer) > 30 or ((now - self.flush_timestamp) > 1 and len(self.buffer)):
+        if len(self.buffer) > 10 or ((now - self.flush_timestamp) > 1 and len(self.buffer)):
             payload = '\n'.join(self.buffer).encode()
             self.resolve_hosts()
             for ip, port in self.resolved_hosts:
