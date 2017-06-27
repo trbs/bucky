@@ -2,7 +2,7 @@
 import os
 import time
 import logging
-import multiprocessing
+import bucky.collector as collector
 
 import six
 
@@ -15,50 +15,25 @@ if six.PY3:
 log = logging.getLogger(__name__)
 
 
-class SystemStatsServer(multiprocessing.Process):
+class SystemStatsCollector(collector.StatsCollector):
     # The order of cpu fields in /proc/stat
     CPU_FIELDS = ('user', 'nice', 'system', 'idle', 'wait', 'interrupt', 'softirq', 'steal')
 
     def __init__(self, queue, cfg):
-        super(SystemStatsServer, self).__init__()
-        self.queue = queue
-        self.metadata = {}
-        if cfg.metadata:
-            self.metadata.update(cfg.metadata)
-        if cfg.system_stats_metadata:
-            self.metadata.update(cfg.system_stats_metadata)
+        super(SystemStatsCollector, self).__init__(queue)
+        self.metadata = self.merge_dicts(cfg.metadata, cfg.system_stats_metadata)
         self.interval = cfg.system_stats_interval
         self.ignored_filesystems = set()
         if cfg.system_stats_df_ignored:
             self.ignored_filesystems.update(cfg.system_stats_df_ignored)
 
-    def close(self):
-        pass
-
-    def run(self):
-        while True:
-            start_timestamp = time.time()
-            self.read_cpu_stats()
-            self.read_load_stats()
-            self.read_df_stats()
-            self.read_memory_stats()
-            self.read_interface_stats()
-            self.read_disk_stats()
-            stop_timestamp = time.time()
-            sleep_time = self.interval - (stop_timestamp - start_timestamp)
-            if sleep_time > 0.1:
-                time.sleep(sleep_time)
-
-    def add_stat(self, name, value, timestamp, metadata):
-        if metadata:
-            if self.metadata:
-                metadata.update(self.metadata)
-        else:
-            metadata = self.metadata
-        if metadata:
-            self.queue.put((None, name, value, timestamp, metadata))
-        else:
-            self.queue.put((None, name, value, timestamp))
+    def collect(self):
+        self.read_cpu_stats()
+        self.read_load_stats()
+        self.read_df_stats()
+        self.read_memory_stats()
+        self.read_interface_stats()
+        self.read_disk_stats()
 
     def read_cpu_stats(self):
         now = int(time.time())
@@ -81,9 +56,9 @@ class SystemStatsServer(multiprocessing.Process):
                     if not cpu_suffix:
                         continue
                     cpu_stats = {k: v for k, v in zip(self.CPU_FIELDS, tokens[1:])}
-                    self.add_stat("cpu", cpu_stats, now, {"instance": cpu_suffix})
+                    self.add_stat("cpu", cpu_stats, now, instance=cpu_suffix)
             if process_stats:
-                self.add_stat("processes", process_stats, now, metadata=None)
+                self.add_stat("processes", process_stats, now)
 
     def read_df_stats(self):
         now = int(time.time())
@@ -110,8 +85,7 @@ class SystemStatsServer(multiprocessing.Process):
                         'free_inodes': long(stats.f_favail),
                         'total_inodes': total_inodes
                     }
-                    self.add_stat("df", df_stats, now,
-                                  metadata=dict(target=mount_target, instance=mount_path, fs=mount_filesystem))
+                    self.add_stat("df", df_stats, now, target=mount_target, instance=mount_path, fs=mount_filesystem)
                 except OSError:
                     pass
 
@@ -135,7 +109,7 @@ class SystemStatsServer(multiprocessing.Process):
                     'tx_errors': long(tokens[11]),
                     'tx_dropped': long(tokens[12])
                 }
-                self.add_stat("interface", interface_stats, now, metadata=dict(instance=name))
+                self.add_stat("interface", interface_stats, now, instance=name)
 
     def read_load_stats(self):
         now = int(time.time())
@@ -149,7 +123,7 @@ class SystemStatsServer(multiprocessing.Process):
                     'last_5m': float(tokens[1]),
                     'last_15m': float(tokens[2])
                 }
-                self.add_stat("load", load_stats, now, metadata=None)
+                self.add_stat("load", load_stats, now)
 
     def read_memory_stats(self):
         now = int(time.time())
@@ -170,7 +144,7 @@ class SystemStatsServer(multiprocessing.Process):
                 elif name == "memavailable":
                     memory_stats['available_bytes'] = long(tokens[1]) * 1024
             if memory_stats:
-                self.add_stat("memory", memory_stats, now, metadata=None)
+                self.add_stat("memory", memory_stats, now)
 
     def read_disk_stats(self):
         now = int(time.time())
@@ -197,4 +171,4 @@ class SystemStatsServer(multiprocessing.Process):
                     'io_time': long(tokens[12]),
                     'weighted_time': long(tokens[13])
                 }
-                self.add_stat("disk", disk_stats, now, metadata=dict(instance=name))
+                self.add_stat("disk", disk_stats, now, instance=name)

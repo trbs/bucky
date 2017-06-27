@@ -290,9 +290,9 @@ class Bucky(object):
         if cfg.statsd_enabled:
             stypes.append(statsd.StatsDServer)
         if cfg.system_stats_enabled:
-            stypes.append(systemstats.SystemStatsServer)
+            stypes.append(systemstats.SystemStatsCollector)
         if cfg.docker_stats_enabled:
-            stypes.append(dockerstats.DockerStatsServer)
+            stypes.append(dockerstats.DockerStatsCollector)
 
         self.servers = []
         for stype in stypes:
