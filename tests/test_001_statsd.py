@@ -234,16 +234,16 @@ def test_simple_persistent_gauges(q, s):
     if os.path.isfile(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile)):
         os.unlink(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile))
     try:
-        s.handler.handle_line("gorm:5|g")
-        assert s.handler.gauges["gorm"] == 5
+        s.handle_line("gorm:5|g")
+        assert s.gauges["gorm"] == 5
 
-        s.handler.save_gauges()
+        s.save_gauges()
 
-        s.handler.handle_line("gorm:1|g")
-        assert s.handler.gauges["gorm"] == 1
+        s.handle_line("gorm:1|g")
+        assert s.gauges["gorm"] == 1
 
-        s.handler.load_gauges()
-        assert s.handler.gauges["gorm"] == 5
+        s.load_gauges()
+        assert s.gauges["gorm"] == 5
     finally:
         if os.path.isfile(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile)):
             os.unlink(os.path.join(t.cfg.directory, t.cfg.statsd_gauges_savefile))
