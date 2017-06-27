@@ -20,7 +20,7 @@ l1000 = range(1000)
 
 queue = multiprocessing.Queue()
 
-handler = bucky.statsd.StatsDHandler(queue, bucky.cfg)
+handler = bucky.statsd.StatsDServer(queue, bucky.cfg)
 
 
 def fill_and_compute_timers(handler):

@@ -67,9 +67,9 @@ def make_name(parts):
     return name
 
 
-class StatsDHandler(threading.Thread):
+class StatsDServer(udpserver.UDPServer):
     def __init__(self, queue, cfg):
-        super(StatsDHandler, self).__init__()
+        super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
         self.daemon = True
         self.queue = queue
         self.cfg = cfg
@@ -132,6 +132,9 @@ class StatsDHandler(threading.Thread):
         self.enable_timer_median = cfg.statsd_timer_median
         self.enable_timer_std = cfg.statsd_timer_std
 
+    def pre_shutdown(self):
+        self.save_gauges()
+
     def load_gauges(self):
         if not self.statsd_persistent_gauges:
             return
@@ -184,9 +187,13 @@ class StatsDHandler(threading.Thread):
             self.keys_seen = {k: self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
 
     def run(self):
-        while True:
-            time.sleep(self.flush_time)
-            self.tick()
+        def flush_loop():
+            while True:
+                time.sleep(self.flush_time)
+                self.tick()
+        self.load_gauges()
+        threading.Thread(target=flush_loop).start()
+        super(StatsDServer, self).run()
 
     def enqueue(self, name, stat, stime, metadata_key=None):
         # No hostnames on statsd
@@ -328,15 +335,18 @@ class StatsDHandler(threading.Thread):
             ret += 1
         return ret
 
-    def handle(self, data):
+    def handle(self, data, addr):
         # Adding a bit of extra sauce so clients can
         # send multiple samples in a single UDP
         # packet.
+        if six.PY3:
+            data = data.decode()
         for line in data.splitlines():
             self.line = line
             if not line.strip():
                 continue
             self.handle_line(line)
+        return True
 
     def handle_tags(self, line):
         # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
@@ -443,30 +453,3 @@ class StatsDHandler(threading.Thread):
 
     def bad_line(self):
         log.error("StatsD: Invalid line: '%s'", self.line.strip())
-
-
-class StatsDServer(udpserver.UDPServer):
-    def __init__(self, queue, cfg):
-        super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
-        self.handler = StatsDHandler(queue, cfg)
-
-    def pre_shutdown(self):
-        self.handler.save_gauges()
-
-    def run(self):
-        self.handler.load_gauges()
-        self.handler.start()
-        super(StatsDServer, self).run()
-
-    if six.PY3:
-        def handle(self, data, addr):
-            self.handler.handle(data.decode())
-            if not self.handler.is_alive():
-                return False
-            return True
-    else:
-        def handle(self, data, addr):
-            self.handler.handle(data)
-            if not self.handler.is_alive():
-                return False
-            return True
