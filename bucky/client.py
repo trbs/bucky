@@ -45,10 +45,17 @@ class Client(multiprocessing.Process):
                 continue
             if sample is None:
                 break
-            self.send(*sample)
+            if type(sample[2]) is dict:
+                self.send_bulk(*sample)
+            else:
+                self.send(*sample)
 
     def send(self, host, name, value, time, metadata=None):
         raise NotImplementedError()
+
+    def send_bulk(self, host, name, value, time, metadata=None):
+        for k in value.keys():
+            self.send(host, name + '.' + k, value[k], time, metadata)
 
     def tick(self):
         pass

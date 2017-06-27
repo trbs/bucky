@@ -82,8 +82,8 @@ class InfluxDBClient(client.Client):
             self.buffer = []
             self.flush_timestamp = now
 
-    def send(self, host, name, value, mtime, metadata=None):
-        buf = [name]
+    def _send(self, host, name, mtime, values, metadata=None):
+        label_buf = [name]
         if host:
             if metadata is None:
                 metadata = {'host': host}
@@ -95,8 +95,15 @@ class InfluxDBClient(client.Client):
                 v = metadata[k]
                 # InfluxDB will drop insert with tags without values
                 if v is not None:
-                    buf.append(self.kv(k, v))
+                    label_buf.append(self.kv(k, v))
+        value_buf = [self.kv(k, values[k]) for k in values.keys()]
         # https://docs.influxdata.com/influxdb/v1.2/write_protocols/line_protocol_tutorial/
-        line = ' '.join((','.join(buf), self.kv('value', value), str(long(mtime) * 1000000000)))
+        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime) * 1000000000)))
         self.buffer.append(line)
         self.tick()
+
+    def send(self, host, name, value, mtime, metadata=None):
+        self._send(host, name, mtime, {'value': value}, metadata)
+
+    def send_bulk(self, host, name, value, mtime, metadata=None):
+        self._send(host, name, mtime, value, metadata)

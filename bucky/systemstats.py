@@ -62,6 +62,7 @@ class SystemStatsServer(multiprocessing.Process):
     def read_cpu_stats(self):
         now = int(time.time())
         with open('/proc/stat') as f:
+            process_stats = {}
             for l in f.readlines():
                 tokens = l.strip().split()
                 if not tokens:
@@ -69,17 +70,19 @@ class SystemStatsServer(multiprocessing.Process):
                 name = tokens[0]
                 if not name.startswith('cpu'):
                     if name == 'ctxt':
-                        self.add_stat("processes", long(tokens[1]), now, {"type": "switches"})
+                        process_stats['switches'] = long(tokens[1])
                     elif name == 'processes':
-                        self.add_stat("processes", long(tokens[1]), now, {"type": "forks"})
+                        process_stats['forks'] = long(tokens[1])
                     elif name == 'procs_running':
-                        self.add_stat("processes", long(tokens[1]), now, {"type": "running"})
+                        process_stats['running'] = long(tokens[1])
                 else:
                     cpu_suffix = name[3:]
                     if not cpu_suffix:
                         continue
-                    for k, v in zip(self.CPU_FIELDS, tokens[1:]):
-                        self.add_stat("cpu", long(v), now, {"instance": cpu_suffix, "type": k})
+                    cpu_stats = {k: v for k, v in zip(self.CPU_FIELDS, tokens[1:])}
+                    self.add_stat("cpu", cpu_stats, now, {"instance": cpu_suffix})
+            if process_stats:
+                self.add_stat("processes", process_stats, now, metadata=None)
 
     def read_df_stats(self):
         now = int(time.time())
@@ -100,18 +103,14 @@ class SystemStatsServer(multiprocessing.Process):
                     if not total_inodes:
                         continue
                     block_size = stats.f_bsize
-                    self.add_stat("df", long(stats.f_bavail) * block_size, now,
-                                  dict(target=mount_target, instance=mount_path, fs=mount_filesystem,
-                                       type="bytes", description="free"))
-                    self.add_stat("df", long(stats.f_blocks) * block_size, now,
-                                  dict(target=mount_target, instance=mount_path, fs=mount_filesystem,
-                                       type="bytes", description="total"))
-                    self.add_stat("df", long(stats.f_favail), now,
-                                  dict(target=mount_target, instance=mount_path, fs=mount_filesystem,
-                                       type="inodes", description="free"))
-                    self.add_stat("df", total_inodes, now,
-                                  dict(target=mount_target, instance=mount_path, fs=mount_filesystem,
-                                       type="inodes", description="total"))
+                    df_stats = {
+                        'free_bytes': long(stats.f_bavail) * block_size,
+                        'total_bytes': long(stats.f_blocks) * block_size,
+                        'free_inodes': long(stats.f_favail),
+                        'total_inodes': total_inodes
+                    }
+                    self.add_stat("df", df_stats, now,
+                                  metadata=dict(target=mount_target, instance=mount_path, fs=mount_filesystem))
                 except OSError:
                     pass
 
@@ -125,14 +124,17 @@ class SystemStatsServer(multiprocessing.Process):
                 if not tokens[0].endswith(':'):
                     continue
                 name = tokens[0][:-1]
-                self.add_stat("interface", long(tokens[1]), now, dict(instance=name, direction="rx", type="bytes"))
-                self.add_stat("interface", long(tokens[2]), now, dict(instance=name, direction="rx", type="packets"))
-                self.add_stat("interface", long(tokens[3]), now, dict(instance=name, direction="rx", type="errors"))
-                self.add_stat("interface", long(tokens[4]), now, dict(instance=name, direction="rx", type="dropped"))
-                self.add_stat("interface", long(tokens[9]), now, dict(instance=name, direction="tx", type="bytes"))
-                self.add_stat("interface", long(tokens[10]), now, dict(instance=name, direction="tx", type="packets"))
-                self.add_stat("interface", long(tokens[11]), now, dict(instance=name, direction="tx", type="errors"))
-                self.add_stat("interface", long(tokens[12]), now, dict(instance=name, direction="tx", type="dropped"))
+                interface_stats = {
+                    'rx_bytes': long(tokens[1]),
+                    'rx_packets': long(tokens[2]),
+                    'rx_errors': long(tokens[3]),
+                    'rx_dropped': long(tokens[4]),
+                    'tx_bytes': long(tokens[9]),
+                    'tx_packets': long(tokens[10]),
+                    'tx_errors': long(tokens[11]),
+                    'tx_dropped': long(tokens[12])
+                }
+                self.add_stat("interface", interface_stats, now, metadata=dict(instance=name))
 
     def read_load_stats(self):
         now = int(time.time())
@@ -141,13 +143,17 @@ class SystemStatsServer(multiprocessing.Process):
                 tokens = l.strip().split()
                 if not tokens or len(tokens) != 5:
                     continue
-                self.add_stat("load", float(tokens[0]), now, dict(type="1m"))
-                self.add_stat("load", float(tokens[1]), now, dict(type="5m"))
-                self.add_stat("load", float(tokens[2]), now, dict(type="15m"))
+                load_stats = {
+                    'last_1m': float(tokens[0]),
+                    'last_5m': float(tokens[1]),
+                    'last_15m': float(tokens[2])
+                }
+                self.add_stat("load", load_stats, now, metadata=None)
 
     def read_memory_stats(self):
         now = int(time.time())
         with open('/proc/meminfo') as f:
+            memory_stats = {}
             for l in f.readlines():
                 tokens = l.strip().split()
                 if not tokens or len(tokens) != 3 or tokens[2].lower() != 'kb':
@@ -157,8 +163,10 @@ class SystemStatsServer(multiprocessing.Process):
                     continue
                 name = name[:-1].lower()
                 if name == "memtotal":
-                    self.add_stat("memory", long(tokens[1]) * 1024, now, dict(type="total", description="bytes"))
+                    memory_stats['total_bytes'] = long(tokens[1]) * 1024
                 elif name == "memfree":
-                    self.add_stat("memory", long(tokens[1]) * 1024, now, dict(type="free", description="bytes"))
+                    memory_stats['free_bytes'] = long(tokens[1]) * 1024
                 elif name == "memavailable":
-                    self.add_stat("memory", long(tokens[1]) * 1024, now, dict(type="available", description="bytes"))
+                    memory_stats['available_bytes'] = long(tokens[1]) * 1024
+            if memory_stats:
+                self.add_stat("memory", memory_stats, now, metadata=None)

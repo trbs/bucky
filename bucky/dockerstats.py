@@ -65,39 +65,28 @@ class DockerStatsServer(multiprocessing.Process):
         return ret
 
     def _add_df_stats(self, now, labels, total_size, rw_size):
-        self.add_stat("docker_df", long(total_size), now,
-                      self._merge(labels, dict(type="bytes", description="total")))
-        self.add_stat("docker_df", long(rw_size), now,
-                      self._merge(labels, dict(type="bytes", description="used")))
+        docker_df_stats = {
+            'total_bytes': long(total_size),
+            'used_bytes': long(rw_size)
+        }
+        self.add_stat("docker_df", docker_df_stats, now, labels)
 
     def _add_cpu_stats(self, now, labels, stats):
         for k, v in enumerate(stats[u'percpu_usage']):
-            self.add_stat("docker_cpu", long(v), now,
-                          self._merge(labels, {"instance": k, "type": "usage"}))
+            self.add_stat("docker_cpu", {'usage': long(v)}, now, self._merge(labels, {"instance": k}))
 
     def _add_interface_stats(self, now, labels, stats):
         for k in stats.keys():
             v = stats[k]
-            self.add_stat("docker_interface", long(v[u'rx_bytes']), now,
-                          self._merge(labels, dict(instance=k, direction="rx", type="bytes")))
-            self.add_stat("docker_interface", long(v[u'rx_packets']), now,
-                          self._merge(labels, dict(instance=k, direction="rx", type="packets")))
-            self.add_stat("docker_interface", long(v[u'rx_errors']), now,
-                          self._merge(labels, dict(instance=k, direction="rx", type="errors")))
-            self.add_stat("docker_interface", long(v[u'rx_dropped']), now,
-                          self._merge(labels, dict(instance=k, direction="rx", type="dropped")))
-            self.add_stat("docker_interface", long(v[u'tx_bytes']), now,
-                          self._merge(labels, dict(instance=k, direction="tx", type="bytes")))
-            self.add_stat("docker_interface", long(v[u'tx_packets']), now,
-                          self._merge(labels, dict(instance=k, direction="tx", type="packets")))
-            self.add_stat("docker_interface", long(v[u'tx_errors']), now,
-                          self._merge(labels, dict(instance=k, direction="tx", type="errors")))
-            self.add_stat("docker_interface", long(v[u'tx_dropped']), now,
-                          self._merge(labels, dict(instance=k, direction="tx", type="dropped")))
+            keys = (
+                u'rx_bytes', u'rx_packets', u'rx_errors', u'rx_dropped',
+                u'tx_bytes', u'tx_packets', u'tx_errors', u'tx_dropped'
+            )
+            docker_interface_stats = {k: long(v[k]) for k in keys}
+            self.add_stat("docker_interface", docker_interface_stats, now, self._merge(labels, dict(instance=k)))
 
     def _add_memory_stats(self, now, labels, stats):
-        self.add_stat("docker_memory", long(stats[u'usage']), now,
-                      self._merge(labels, dict(type="used", description="bytes")))
+        self.add_stat("docker_memory", {'used_bytes': long(stats[u'usage'])}, now, labels)
 
     def read_docker_stats(self):
         now = int(time.time())
