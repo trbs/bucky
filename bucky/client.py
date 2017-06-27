@@ -55,7 +55,11 @@ class Client(multiprocessing.Process):
 
     def send_bulk(self, host, name, value, time, metadata=None):
         for k in value.keys():
-            self.send(host, name + '.' + k, value[k], time, metadata)
+            if name.endswith('.'):
+                metric_name = name + k
+            else:
+                metric_name = name + '.' + k
+            self.send(host, metric_name, value[k], time, metadata)
 
     def tick(self):
         pass

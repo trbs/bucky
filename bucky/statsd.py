@@ -158,7 +158,6 @@ class StatsDHandler(threading.Thread):
             log.exception("StatsD: IOError")
 
     def tick(self):
-        name_global_numstats = self.name_global + "numStats"
         stime = int(time.time())
         with self.lock:
             if self.delete_timers:
@@ -181,7 +180,7 @@ class StatsDHandler(threading.Thread):
             kept_keys = kept_keys.union(set(self.gauges.keys()))
             num_stats += self.enqueue_sets(stime)
             kept_keys = kept_keys.union(set(self.sets.keys()))
-            self.enqueue(name_global_numstats, num_stats, stime)
+            self.enqueue(self.name_global, {"numStats": num_stats}, stime)
             self.keys_seen = {k: self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
 
     def run(self):
@@ -204,10 +203,12 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.timers.items() if six.PY3 else self.timers.iteritems()
         for k, v in iteritems:
+            timer_stats = {}
+
             # Skip timers that haven't collected any values
             if not v:
-                self.enqueue("%s%s.count" % (self.name_timer, k), 0, stime, k)
-                self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime, k)
+                timer_stats['count'] = 0
+                timer_stats['count_ps'] = 0.0
             else:
                 v.sort()
                 count = len(v)
@@ -229,58 +230,63 @@ class StatsDHandler(threading.Thread):
                     vsum = cumulative_values[thresh_idx - 1]
 
                     t = int(pct_thresh)
+                    t_suffix = "_%s" % (t,)
                     if self.enable_timer_mean:
                         mean = vsum / float(thresh_idx)
-                        self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime, k)
+                        timer_stats["mean" + t_suffix] = mean
 
                     if self.enable_timer_upper:
                         vthresh = v[thresh_idx - 1]
-                        self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime, k)
+                        timer_stats["upper" + t_suffix] = vthresh
 
                     if self.enable_timer_count:
-                        self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime, k)
+                        timer_stats["count" + t_suffix] = thresh_idx
 
                     if self.enable_timer_sum:
-                        self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime, k)
+                        timer_stats["sum" + t_suffix] = vsum
 
                     if self.enable_timer_sum_squares:
                         vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
-                        self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime, k)
+                        timer_stats["sum_squares" + t_suffix] = vsum_squares
 
                 vsum = cumulative_values[count - 1]
                 mean = vsum / float(count)
 
                 if self.enable_timer_mean:
-                    self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime, k)
+                    timer_stats["mean"] = mean
 
                 if self.enable_timer_upper:
-                    self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime, k)
+                    timer_stats["upper"] = vmax
 
                 if self.enable_timer_lower:
-                    self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime, k)
+                    timer_stats["lower"] = vmin
 
                 if self.enable_timer_count:
-                    self.enqueue("%s%s.count" % (self.name_timer, k), count, stime, k)
+                    timer_stats["count"] = count
 
                 if self.enable_timer_count_ps:
-                    self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime, k)
+                    timer_stats["count_ps"] = float(count) / self.flush_time
 
                 if self.enable_timer_median:
                     mid = int(count / 2)
                     median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
-                    self.enqueue("%s%s.median" % (self.name_timer, k), median, stime, k)
+                    timer_stats["median"] = median
 
                 if self.enable_timer_sum:
-                    self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime, k)
+                    timer_stats["sum"] = vsum
 
                 if self.enable_timer_sum_squares:
                     vsum_squares = cumul_sum_squares_values[count - 1]
-                    self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime, k)
+                    timer_stats["sum_squares"] = vsum_squares
 
                 if self.enable_timer_std:
                     sum_of_diffs = sum(((value - mean) ** 2 for value in v))
                     stddev = math.sqrt(sum_of_diffs / count)
-                    self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime, k)
+                    timer_stats["std"] = stddev
+
+            if timer_stats:
+                self.enqueue("%s%s" % (self.name_timer, k), timer_stats, stime, k)
+
             self.timers[k] = []
             ret += 1
 
@@ -290,7 +296,7 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
         for k, v in iteritems:
-            self.enqueue("%s%s.count" % (self.name_set, k), len(v), stime, k)
+            self.enqueue("%s%s" % (self.name_set, k), {"count": len(v)}, stime, k)
             ret += 1
             self.sets[k] = set()
         return ret
@@ -310,13 +316,14 @@ class StatsDHandler(threading.Thread):
         iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
         for k, v in iteritems:
             if self.legacy_namespace:
-                stat_rate = "%s%s" % (self.name_legacy_rate, k)
-                stat_count = "%s%s" % (self.name_legacy_count, k)
+                self.enqueue("%s%s" % (self.name_legacy_rate, k), v / self.flush_time, stime, k)
+                self.enqueue("%s%s" % (self.name_legacy_count, k), v, stime, k)
             else:
-                stat_rate = "%s%s.rate" % (self.name_counter, k)
-                stat_count = "%s%s.count" % (self.name_counter, k)
-            self.enqueue(stat_rate, v / self.flush_time, stime, k)
-            self.enqueue(stat_count, v, stime, k)
+                stats = {
+                    'rate': v / self.flush_time,
+                    'count': v
+                }
+                self.enqueue("%s%s" % (self.name_counter, k), stats, stime, k)
             self.counters[k] = 0
             ret += 1
         return ret

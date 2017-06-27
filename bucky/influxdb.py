@@ -106,4 +106,4 @@ class InfluxDBClient(client.Client):
         self._send(host, name, mtime, {'value': value}, metadata)
 
     def send_bulk(self, host, name, value, mtime, metadata=None):
-        self._send(host, name, mtime, value, metadata)
+        self._send(host, name.strip('.'), mtime, value, metadata)
