@@ -34,6 +34,7 @@ class SystemStatsCollector(collector.StatsCollector):
         self.read_memory_stats()
         self.read_interface_stats()
         self.read_disk_stats()
+        return True
 
     def read_cpu_stats(self):
         now = int(time.time())
