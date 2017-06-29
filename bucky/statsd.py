@@ -121,6 +121,7 @@ class StatsDServer(udpserver.UDPServer):
         self.delete_timers = self.delete_idlestats and cfg.statsd_delete_timers
         self.delete_sets = self.delete_idlestats and cfg.statsd_delete_sets
         self.onlychanged_gauges = self.delete_idlestats and cfg.statsd_onlychanged_gauges
+        self.ignore_datadog_extensions = cfg.statsd_ignore_datadog_extensions
 
         self.enable_timer_mean = cfg.statsd_timer_mean
         self.enable_timer_upper = cfg.statsd_timer_upper
@@ -367,6 +368,9 @@ class StatsDServer(udpserver.UDPServer):
         return bits[0], tags
 
     def handle_line(self, line):
+        if self.ignore_datadog_extensions:
+            if line.startswith('sc|') or line.startswith('_e{'):
+                return
         line, tags = self.handle_tags(line)
         bits = line.split(":")
         key = self.handle_key(bits.pop(0), tags)

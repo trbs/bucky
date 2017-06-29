@@ -51,11 +51,12 @@ statsd_delete_idlestats = False
 statsd_delete_counters = True
 statsd_delete_timers = True
 statsd_delete_sets = True
-# statsd_delete_gauges = False
-# `statsd_delete_gauges = True` would make gauges in practice useless,
-# except if you get an absolute(!) value every flush-interval which would makes this setting irrelevant
-statsd_onlychanged_gauges = True
+# `statsd_delete_gauges = True` would make gauges in practice useless, except if you get an absolute(!)
+# value every flush-interval which would makes this setting irrelevant, so this option doesn't exist.
 # send gauge value to graphite only if there was a change
+statsd_onlychanged_gauges = True
+# Disable this only if you want "bad line" be reported for lines with DataDog extensions
+statsd_ignore_datadog_extensions = True
 
 statsd_percentile_thresholds = [90]  # percentile thresholds for statsd timers
 
