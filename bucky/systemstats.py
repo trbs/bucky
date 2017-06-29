@@ -56,7 +56,7 @@ class SystemStatsCollector(collector.StatsCollector):
                     cpu_suffix = name[3:]
                     if not cpu_suffix:
                         continue
-                    cpu_stats = {k: v for k, v in zip(self.CPU_FIELDS, tokens[1:])}
+                    cpu_stats = {k: long(v) for k, v in zip(self.CPU_FIELDS, tokens[1:])}
                     self.add_stat("cpu", cpu_stats, now, instance=cpu_suffix)
             if process_stats:
                 self.add_stat("processes", process_stats, now)
