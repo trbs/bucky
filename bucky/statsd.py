@@ -158,7 +158,7 @@ class StatsDServer(udpserver.UDPServer):
             log.exception("StatsD: IOError")
         else:
             for gauge_name, gauge_metadata, gauge_value in gauges:
-                k = (gauge_name, gauge_metadata)
+                k = (gauge_name, tuple(gauge_metadata))
                 self.gauges[k] = gauge_value
                 self.keys_seen.add(k)
 

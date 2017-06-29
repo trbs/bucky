@@ -24,7 +24,7 @@ class StatsCollector(multiprocessing.Process):
         interval = self.interval
         while True:
             start_timestamp = time.time()
-            interval = self.interval if self.collect() else interval+interval
+            interval = self.interval if self.collect() else interval + interval
             stop_timestamp = time.time()
             interval = min(interval, 300)
             interval = interval - (stop_timestamp - start_timestamp)
