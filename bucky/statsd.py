@@ -85,8 +85,8 @@ class StatsDServer(udpserver.UDPServer):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
-        metadata = cfg.metadata if cfg.metadata else {}
-        self.metadata = tuple((k, metadata[k]) for k in metadata.keys())
+        self.metadata_dict = cfg.metadata if cfg.metadata else {}
+        self.metadata_tuple = tuple((k, self.metadata_dict[k]) for k in sorted(self.metadata_dict.keys()))
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
@@ -202,21 +202,34 @@ class StatsDServer(udpserver.UDPServer):
         threading.Thread(target=flush_loop).start()
         super(StatsDServer, self).run()
 
+    def coalesce_metadata(self, metadata):
+        if not metadata:
+            return self.metadata_dict
+        if self.metadata_dict:
+            tmp = self.metadata_dict.copy()
+            tmp.update(metadata)
+            return tmp
+        return dict(metadata)
+
     def enqueue_with_dotted_names(self, bucket, name, value, stime, metadata=None):
         # No hostnames on statsd
         if name:
             bucket += name
+        metadata = self.coalesce_metadata(metadata)
         if metadata:
-            self.queue.put((None, bucket, value, stime, metadata))
+            metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
+            self.queue.put((None, bucket, value, stime, metadata_tuple))
         else:
             self.queue.put((None, bucket, value, stime))
 
     def enqueue_with_metadata_names(self, bucket, name, value, stime, metadata=None):
         # No hostnames on statsd
+        metadata = self.coalesce_metadata(metadata)
         if metadata:
-            if name:
-                metadata = metadata + (('name', name),)
-            self.queue.put((None, bucket, value, stime, metadata))
+            if name and not 'name' in metadata:
+                metadata['name'] = name
+            metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
+            self.queue.put((None, bucket, value, stime, metadata_tuple))
         else:
             if name:
                 self.queue.put((None, bucket, value, stime, (('name', name),)))
@@ -373,8 +386,8 @@ class StatsDServer(udpserver.UDPServer):
         # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
         bits = line.split("#")
         if len(bits) < 2:
-            return line, self.metadata
-        metadata = dict(self.metadata)
+            return line, None
+        metadata = {}
         for i in bits[1].split(","):
             kv = i.split("=")
             if len(kv) > 1:
