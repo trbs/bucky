@@ -102,7 +102,8 @@ class InfluxDBClient(client.Client):
                 value_buf.append(str(k) + '=' + str(v))
             elif t is str:
                 value_buf.append(str(k) + '="' + v + '"')
-        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime))))
+        # So, the lower timestamp precisions don't seem to work with line protocol...
+        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime) * 1000000000)))
         self.buffer.append(line)
         self.tick()
 
