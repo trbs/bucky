@@ -21,7 +21,7 @@ class SystemStatsCollector(collector.StatsCollector):
 
     def __init__(self, queue, cfg):
         super(SystemStatsCollector, self).__init__(queue)
-        self.metadata = self.merge_dicts(cfg.metadata, cfg.system_stats_metadata)
+        self.metadata = cfg.metadata if cfg.metadata else {}
         self.interval = cfg.system_stats_interval
         self.filesystem_blacklist, self.filesystem_whitelist = self.get_lists(cfg.system_stats_filesystem_blacklist,
                                                                               cfg.system_stats_filesystem_whitelist)

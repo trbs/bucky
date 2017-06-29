@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 class DockerStatsCollector(collector.StatsCollector):
     def __init__(self, queue, cfg):
         super(DockerStatsCollector, self).__init__(queue)
-        self.metadata = self.merge_dicts(cfg.metadata, cfg.docker_stats_metadata)
+        self.metadata = cfg.metadata if cfg.metadata else {}
         self.interval = cfg.docker_stats_interval
         if cfg.docker_stats_version:
             self.docker_client = docker.client.from_env(version=cfg.docker_stats_version)

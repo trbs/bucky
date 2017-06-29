@@ -169,7 +169,7 @@ def options():
             type="str", default=cfg.gid,
             help="Drop privileges to this group"
         ),
-        op.make_option("--label", action="append", dest="labels")
+        op.make_option("--metadata", action="append", dest="metadata")
     ]
 
 
@@ -260,19 +260,20 @@ def main():
         except:
             log.exception("Could not create directory: %s" % cfg.directory)
 
-    if cfg.labels:
-        if not cfg.metadata:
-            cfg.metadata = {}
-        for label in cfg.labels:
-            kv = label.split("=")
+    # This in place swap from list to dict is hideous :-|
+    metadata = {}
+    if cfg.metadata:
+        for i in cfg.metadata:
+            kv = i.split("=")
             if len(kv) > 1:
-                cfg.metadata[kv[0]] = kv[1]
+                metadata[kv[0]] = kv[1]
             else:
-                kv = label.split(":")
+                kv = i.split(":")
                 if len(kv) > 1:
-                    cfg.metadata[kv[0]] = kv[1]
+                    metadata[kv[0]] = kv[1]
                 else:
-                    cfg.metadata[kv[0]] = None
+                    metadata[kv[0]] = None
+    cfg.metadata = metadata
 
     bucky = Bucky(cfg)
     bucky.run()

@@ -85,11 +85,7 @@ class StatsDServer(udpserver.UDPServer):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
-        metadata = {}
-        if cfg.metadata:
-            metadata.update(cfg.metadata)
-        if cfg.system_stats_metadata:
-            metadata.update(cfg.system_stats_metadata)
+        metadata = cfg.metadata if cfg.metadata else {}
         self.metadata = tuple((k, metadata[k]) for k in metadata.keys())
         self.key_res = (
             (re.compile("\s+"), "_"),
@@ -373,31 +369,31 @@ class StatsDServer(udpserver.UDPServer):
             self.handle_line(line)
         return True
 
-    def handle_tags(self, line):
+    def handle_metadata(self, line):
         # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
         bits = line.split("#")
         if len(bits) < 2:
             return line, self.metadata
-        tags = dict(self.metadata)
+        metadata = dict(self.metadata)
         for i in bits[1].split(","):
             kv = i.split("=")
             if len(kv) > 1:
-                tags[kv[0]] = kv[1]
+                metadata[kv[0]] = kv[1]
             else:
                 kv = i.split(":")
                 if len(kv) > 1:
-                    tags[kv[0]] = kv[1]
+                    metadata[kv[0]] = kv[1]
                 else:
-                    tags[kv[0]] = None
-        return bits[0], tuple((k, tags[k]) for k in sorted(tags.keys()))
+                    metadata[kv[0]] = None
+        return bits[0], tuple((k, metadata[k]) for k in sorted(metadata.keys()))
 
     def handle_line(self, line):
         if self.ignore_datadog_extensions:
             if line.startswith('sc|') or line.startswith('_e{'):
                 return
-        line, tags = self.handle_tags(line)
+        line, metadata = self.handle_metadata(line)
         bits = line.split(":")
-        key = self.handle_key(bits.pop(0), tags)
+        key = self.handle_key(bits.pop(0), metadata)
 
         if not bits:
             self.bad_line()
@@ -421,10 +417,10 @@ class StatsDServer(udpserver.UDPServer):
             else:
                 self.handle_counter(key, fields)
 
-    def handle_key(self, key, tags):
+    def handle_key(self, key, metadata):
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
-        key = (key, tags)
+        key = (key, metadata)
         self.keys_seen.add(key)
         return key
 
