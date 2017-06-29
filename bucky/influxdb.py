@@ -82,16 +82,11 @@ class InfluxDBClient(client.Client):
     def _send(self, host, name, mtime, values, metadata=None):
         # https://docs.influxdata.com/influxdb/v1.2/write_protocols/line_protocol_tutorial/
         label_buf = [name]
-        if host:
-            if metadata is None:
-                metadata = {'host': host}
-            else:
-                if 'host' not in metadata:
-                    metadata['host'] = host
+        if not metadata and host:
+            metadata = ('host', host)
         if metadata:
             # InfluxDB docs recommend sorting tags
-            for k in sorted(metadata.keys()):
-                v = metadata[k]
+            for k, v in metadata:
                 # InfluxDB will drop insert with empty tags
                 if v is None or v == '':
                     continue

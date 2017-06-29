@@ -85,11 +85,12 @@ class StatsDServer(udpserver.UDPServer):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
-        self.metadata = {}
+        metadata = {}
         if cfg.metadata:
-            self.metadata.update(cfg.metadata)
+            metadata.update(cfg.metadata)
         if cfg.system_stats_metadata:
-            self.metadata.update(cfg.system_stats_metadata)
+            metadata.update(cfg.system_stats_metadata)
+        self.metadata = tuple((k, metadata[k]) for k in metadata.keys())
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
@@ -115,7 +116,7 @@ class StatsDServer(udpserver.UDPServer):
 
         self.pct_thresholds = cfg.statsd_percentile_thresholds
 
-        self.keys_seen = {}
+        self.keys_seen = set()
         self.delete_idlestats = cfg.statsd_delete_idlestats
         self.delete_counters = self.delete_idlestats and cfg.statsd_delete_counters
         self.delete_timers = self.delete_idlestats and cfg.statsd_delete_timers
@@ -147,16 +148,19 @@ class StatsDServer(udpserver.UDPServer):
         except IOError:
             log.exception("StatsD: IOError")
         else:
-            self.gauges.update({k: gauges[k][0] for k in gauges.keys()})
-            self.keys_seen.update({k: gauges[k][1] for k in gauges.keys()})
+            for gauge_name, gauge_metadata, gauge_value in gauges:
+                k = (gauge_name, gauge_metadata)
+                self.gauges[k] = gauge_value
+                self.keys_seen.add(k)
 
     def save_gauges(self):
         if not self.statsd_persistent_gauges:
             return
         try:
-            gauges = {}
+            gauges = []
             for k in self.gauges.keys():
-                gauges[k] = (self.gauges[k], self.keys_seen.get(k, None))
+                gauge_name, gauge_metadata = k
+                gauges.append((gauge_name, gauge_metadata, self.gauges[k]))
             write_json_file(self.gauges_filename, gauges)
         except IOError:
             log.exception("StatsD: IOError")
@@ -165,27 +169,23 @@ class StatsDServer(udpserver.UDPServer):
         stime = int(time.time())
         with self.lock:
             if self.delete_timers:
-                rem_keys = set(self.timers.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.timers.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.timers[k]
             if self.delete_counters:
-                rem_keys = set(self.counters.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.counters.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.counters[k]
             if self.delete_sets:
-                rem_keys = set(self.sets.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.sets.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.sets[k]
             num_stats = self.enqueue_timers(stime)
-            kept_keys = set(self.timers.keys())
             num_stats += self.enqueue_counters(stime)
-            kept_keys = kept_keys.union(set(self.counters.keys()))
             num_stats += self.enqueue_gauges(stime)
-            kept_keys = kept_keys.union(set(self.gauges.keys()))
             num_stats += self.enqueue_sets(stime)
-            kept_keys = kept_keys.union(set(self.sets.keys()))
             self.enqueue(self.name_global, {"numStats": num_stats}, stime)
-            self.keys_seen = {k: self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
+            self.keys_seen = set()
 
     def run(self):
         def flush_loop():
@@ -196,12 +196,8 @@ class StatsDServer(udpserver.UDPServer):
         threading.Thread(target=flush_loop).start()
         super(StatsDServer, self).run()
 
-    def enqueue(self, name, stat, stime, metadata_key=None):
+    def enqueue(self, name, stat, stime, metadata=None):
         # No hostnames on statsd
-        if metadata_key:
-            metadata = self.keys_seen.get(metadata_key, None)
-        else:
-            metadata = self.metadata
         if metadata:
             self.queue.put((None, name, stat, stime, metadata))
         else:
@@ -211,6 +207,7 @@ class StatsDServer(udpserver.UDPServer):
         ret = 0
         iteritems = self.timers.items() if six.PY3 else self.timers.iteritems()
         for k, v in iteritems:
+            timer_name, timer_metadata = k
             timer_stats = {}
 
             # Skip timers that haven't collected any values
@@ -293,7 +290,7 @@ class StatsDServer(udpserver.UDPServer):
                     timer_stats["std"] = stddev
 
             if timer_stats:
-                self.enqueue("%s%s" % (self.name_timer, k), timer_stats, stime, k)
+                self.enqueue("%s%s" % (self.name_timer, timer_name), timer_stats, stime, timer_metadata)
 
             self.timers[k] = []
             ret += 1
@@ -304,7 +301,8 @@ class StatsDServer(udpserver.UDPServer):
         ret = 0
         iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
         for k, v in iteritems:
-            self.enqueue("%s%s" % (self.name_set, k), {"count": len(v)}, stime, k)
+            set_name, set_metadata = k
+            self.enqueue("%s%s" % (self.name_set, set_name), {"count": len(v)}, stime, set_metadata)
             ret += 1
             self.sets[k] = set()
         return ret
@@ -313,9 +311,10 @@ class StatsDServer(udpserver.UDPServer):
         ret = 0
         iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
         for k, v in iteritems:
+            gauge_name, gauge_metadata = k
             # only send a value if there was an update if `delete_idlestats` is `True`
             if not self.onlychanged_gauges or k in self.keys_seen:
-                self.enqueue("%s%s" % (self.name_gauge, k), v, stime, k)
+                self.enqueue("%s%s" % (self.name_gauge, gauge_name), v, stime, gauge_metadata)
                 ret += 1
         return ret
 
@@ -323,15 +322,16 @@ class StatsDServer(udpserver.UDPServer):
         ret = 0
         iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
         for k, v in iteritems:
+            counter_name, counter_metadata = k
             if self.legacy_namespace:
-                self.enqueue("%s%s" % (self.name_legacy_rate, k), v / self.flush_time, stime, k)
-                self.enqueue("%s%s" % (self.name_legacy_count, k), v, stime, k)
+                self.enqueue("%s%s" % (self.name_legacy_rate, counter_name), v / self.flush_time, stime, counter_metadata)
+                self.enqueue("%s%s" % (self.name_legacy_count, counter_name), v, stime, counter_metadata)
             else:
                 stats = {
                     'rate': v / self.flush_time,
                     'count': v
                 }
-                self.enqueue("%s%s" % (self.name_counter, k), stats, stime, k)
+                self.enqueue("%s%s" % (self.name_counter, counter_name), stats, stime, counter_metadata)
             self.counters[k] = 0
             ret += 1
         return ret
@@ -353,8 +353,8 @@ class StatsDServer(udpserver.UDPServer):
         # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
         bits = line.split("#")
         if len(bits) < 2:
-            return line, None
-        tags = {}
+            return line, self.metadata
+        tags = dict(self.metadata)
         for i in bits[1].split(","):
             kv = i.split("=")
             if len(kv) > 1:
@@ -365,7 +365,7 @@ class StatsDServer(udpserver.UDPServer):
                     tags[kv[0]] = kv[1]
                 else:
                     tags[kv[0]] = None
-        return bits[0], tags
+        return bits[0], tuple((k, tags[k]) for k in sorted(tags.keys()))
 
     def handle_line(self, line):
         if self.ignore_datadog_extensions:
@@ -397,16 +397,11 @@ class StatsDServer(udpserver.UDPServer):
             else:
                 self.handle_counter(key, fields)
 
-    def handle_key(self, key, tags=None):
-        if tags is None:
-            coalesced_tags = self.metadata
-        else:
-            coalesced_tags = tags
-            if self.metadata:
-                coalesced_tags.update(self.metadata)
+    def handle_key(self, key, tags):
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
-        self.keys_seen[key] = coalesced_tags
+        key = (key, tags)
+        self.keys_seen.add(key)
         return key
 
     def handle_timer(self, key, fields):

@@ -41,7 +41,8 @@ class StatsCollector(multiprocessing.Process):
         else:
             metadata = self.metadata
         if metadata:
-            self.queue.put((None, name, value, timestamp, metadata))
+            metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
+            self.queue.put((None, name, value, timestamp, metadata_tuple))
         else:
             self.queue.put((None, name, value, timestamp))
 

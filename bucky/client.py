@@ -54,7 +54,7 @@ class Client(multiprocessing.Process):
         raise NotImplementedError()
 
     def send_bulk(self, host, name, value, time, metadata=None):
-        for k in value.keys():
+        for k in sorted(value.keys()):
             if name.endswith('.'):
                 metric_name = name + k
             else:
