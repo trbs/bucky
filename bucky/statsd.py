@@ -97,7 +97,15 @@ class StatsDServer(udpserver.UDPServer):
             (re.compile("[^a-zA-Z_\-0-9\.]"), "")
         )
 
-        if self.legacy_namespace:
+        self.enqueue = self.enqueue_with_dotted_names
+        if cfg.statsd_metadata_namespace:
+            self.name_global = self.global_prefix
+            self.name_counter = self.global_prefix + self.prefix_counter
+            self.name_timer = self.global_prefix + self.prefix_timer
+            self.name_gauge = self.global_prefix + self.prefix_gauge
+            self.name_set = self.global_prefix + self.prefix_set
+            self.enqueue = self.enqueue_with_metadata_names
+        elif self.legacy_namespace:
             self.name_global = 'stats.'
             self.name_legacy_rate = 'stats.'
             self.name_legacy_count = 'stats_counts.'
@@ -123,6 +131,7 @@ class StatsDServer(udpserver.UDPServer):
         self.delete_sets = self.delete_idlestats and cfg.statsd_delete_sets
         self.onlychanged_gauges = self.delete_idlestats and cfg.statsd_onlychanged_gauges
         self.ignore_datadog_extensions = cfg.statsd_ignore_datadog_extensions
+        self.ignore_internal_stats = cfg.statsd_ignore_internal_stats
 
         self.enable_timer_mean = cfg.statsd_timer_mean
         self.enable_timer_upper = cfg.statsd_timer_upper
@@ -184,7 +193,8 @@ class StatsDServer(udpserver.UDPServer):
             num_stats += self.enqueue_counters(stime)
             num_stats += self.enqueue_gauges(stime)
             num_stats += self.enqueue_sets(stime)
-            self.enqueue(self.name_global, {"numStats": num_stats}, stime)
+            if not self.ignore_internal_stats:
+                self.enqueue(self.name_global, None, {"numStats": num_stats}, stime)
             self.keys_seen = set()
 
     def run(self):
@@ -196,12 +206,26 @@ class StatsDServer(udpserver.UDPServer):
         threading.Thread(target=flush_loop).start()
         super(StatsDServer, self).run()
 
-    def enqueue(self, name, stat, stime, metadata=None):
+    def enqueue_with_dotted_names(self, bucket, name, value, stime, metadata=None):
+        # No hostnames on statsd
+        if name:
+            bucket += name
+        if metadata:
+            self.queue.put((None, bucket, value, stime, metadata))
+        else:
+            self.queue.put((None, bucket, value, stime))
+
+    def enqueue_with_metadata_names(self, bucket, name, value, stime, metadata=None):
         # No hostnames on statsd
         if metadata:
-            self.queue.put((None, name, stat, stime, metadata))
+            if name:
+                metadata = metadata + (('name', name),)
+            self.queue.put((None, bucket, value, stime, metadata))
         else:
-            self.queue.put((None, name, stat, stime))
+            if name:
+                self.queue.put((None, bucket, value, stime, (('name', name),)))
+            else:
+                self.queue.put((None, bucket, value, stime))
 
     def enqueue_timers(self, stime):
         ret = 0
@@ -290,7 +314,7 @@ class StatsDServer(udpserver.UDPServer):
                     timer_stats["std"] = stddev
 
             if timer_stats:
-                self.enqueue("%s%s" % (self.name_timer, timer_name), timer_stats, stime, timer_metadata)
+                self.enqueue(self.name_timer, timer_name, timer_stats, stime, timer_metadata)
 
             self.timers[k] = []
             ret += 1
@@ -302,7 +326,7 @@ class StatsDServer(udpserver.UDPServer):
         iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
         for k, v in iteritems:
             set_name, set_metadata = k
-            self.enqueue("%s%s" % (self.name_set, set_name), {"count": len(v)}, stime, set_metadata)
+            self.enqueue(self.name_set, set_name, {"count": len(v)}, stime, set_metadata)
             ret += 1
             self.sets[k] = set()
         return ret
@@ -314,7 +338,7 @@ class StatsDServer(udpserver.UDPServer):
             gauge_name, gauge_metadata = k
             # only send a value if there was an update if `delete_idlestats` is `True`
             if not self.onlychanged_gauges or k in self.keys_seen:
-                self.enqueue("%s%s" % (self.name_gauge, gauge_name), v, stime, gauge_metadata)
+                self.enqueue(self.name_gauge, gauge_name, v, stime, gauge_metadata)
                 ret += 1
         return ret
 
@@ -324,14 +348,14 @@ class StatsDServer(udpserver.UDPServer):
         for k, v in iteritems:
             counter_name, counter_metadata = k
             if self.legacy_namespace:
-                self.enqueue("%s%s" % (self.name_legacy_rate, counter_name), v / self.flush_time, stime, counter_metadata)
-                self.enqueue("%s%s" % (self.name_legacy_count, counter_name), v, stime, counter_metadata)
+                self.enqueue(self.name_legacy_rate, counter_name, v / self.flush_time, stime, counter_metadata)
+                self.enqueue(self.name_legacy_count, counter_name, v, stime, counter_metadata)
             else:
                 stats = {
                     'rate': v / self.flush_time,
                     'count': v
                 }
-                self.enqueue("%s%s" % (self.name_counter, counter_name), stats, stime, counter_metadata)
+                self.enqueue(self.name_counter, counter_name, stats, stime, counter_metadata)
             self.counters[k] = 0
             ret += 1
         return ret
