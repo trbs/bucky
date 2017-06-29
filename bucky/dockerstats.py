@@ -21,9 +21,6 @@ class DockerStatsCollector(collector.StatsCollector):
         super(DockerStatsCollector, self).__init__(queue)
         self.metadata = self.merge_dicts(cfg.metadata, cfg.docker_stats_metadata)
         self.interval = cfg.docker_stats_interval
-        self.ignored_filesystems = set()
-        if cfg.system_stats_df_ignored:
-            self.ignored_filesystems.update(cfg.system_stats_df_ignored)
         if cfg.docker_stats_version:
             self.docker_client = docker.client.from_env(version=cfg.docker_stats_version)
         else:
@@ -34,7 +31,7 @@ class DockerStatsCollector(collector.StatsCollector):
             'total_bytes': long(total_size),
             'used_bytes': long(rw_size)
         }
-        self.add_stat("docker_df", docker_df_stats, now, **labels)
+        self.add_stat("docker_filesystem", docker_df_stats, now, **labels)
 
     def read_cpu_stats(self, now, labels, stats):
         for k, v in enumerate(stats[u'percpu_usage']):
@@ -58,8 +55,8 @@ class DockerStatsCollector(collector.StatsCollector):
         try:
             for i, container in enumerate(self.docker_client.api.containers(size=True)):
                 labels = container[u'Labels']
-                if 'container_id' not in labels:
-                    labels['container_id'] = container[u'Id'][:12]
+                if 'docker_id' not in labels:
+                    labels['docker_id'] = container[u'Id'][:12]
                 stats = self.docker_client.api.stats(container[u'Id'], decode=True, stream=False)
                 self.read_df_stats(now, labels, long(container[u'SizeRootFs']), long(container.get(u'SizeRw', 0)))
                 self.read_cpu_stats(now, labels, stats[u'cpu_stats'][u'cpu_usage'])

@@ -97,7 +97,12 @@ name_host_trim = []
 system_stats_enabled = False
 system_stats_interval = 10
 system_stats_metadata = None
-system_stats_df_ignored = ['tmpfs', 'aufs', 'rootfs', 'devtmpfs']
+system_stats_filesystem_blacklist = ['tmpfs', 'aufs', 'rootfs', 'devtmpfs']
+system_stats_filesystem_whitelist = None
+system_stats_interface_blacklist = None
+system_stats_interface_whitelist = None
+system_stats_disk_blacklist = ['loop0', 'loop1', 'loop2', 'loop3', 'loop4', 'loop5', 'loop6', 'loop7']
+system_stats_disk_whitelist = None
 
 docker_stats_enabled = False
 docker_stats_interval = 10
