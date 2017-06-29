@@ -69,9 +69,6 @@ class InfluxDBClient(client.Client):
         except:
             pass
 
-    def kv(self, k, v):
-        return str(k) + '=' + str(v)
-
     def tick(self):
         now = time.time()
         if len(self.buffer) > 10 or ((now - self.flush_timestamp) > 1 and len(self.buffer)):
@@ -98,15 +95,18 @@ class InfluxDBClient(client.Client):
                 # InfluxDB will drop insert with empty tags
                 if v is None or v == '':
                     continue
-                label_buf.append(self.kv(k, v))
+                v = str(v).replace(' ', '')
+                label_buf.append(str(k) + '=' + v)
         value_buf = []
         for k in values.keys():
             v = values[k]
             t = type(v)
             if t is long or t is int:
-                value_buf.append(self.kv(k, str(values[k]) + 'i'))
-            else:
-                value_buf.append(self.kv(k, values[k]))
+                value_buf.append(str(k) + '=' + str(v) + 'i')
+            elif t is float or t is bool:
+                value_buf.append(str(k) + '=' + str(v))
+            elif t is str:
+                value_buf.append(str(k) + '="' + v + '"')
         line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime))))
         self.buffer.append(line)
         self.tick()
