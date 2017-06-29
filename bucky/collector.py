@@ -21,17 +21,15 @@ class StatsCollector(multiprocessing.Process):
 
     def run(self):
         setproctitle("bucky: %s" % self.__class__.__name__)
-        err = 0
+        interval = self.interval
         while True:
             start_timestamp = time.time()
-            if not self.collect():
-                err = min(err + 1, 2)
-            else:
-                err = 0
+            interval = self.interval if self.collect() else interval+interval
             stop_timestamp = time.time()
-            sleep_time = (err + 1) * self.interval - (stop_timestamp - start_timestamp)
-            if sleep_time > 0.1:
-                time.sleep(sleep_time)
+            interval = min(interval, 300)
+            interval = interval - (stop_timestamp - start_timestamp)
+            if interval > 0.1:
+                time.sleep(interval)
 
     def collect(self):
         raise NotImplementedError()
