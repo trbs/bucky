@@ -107,7 +107,7 @@ class InfluxDBClient(client.Client):
                 value_buf.append(self.kv(k, str(values[k]) + 'i'))
             else:
                 value_buf.append(self.kv(k, values[k]))
-        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime) * 1000000000)))
+        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime))))
         self.buffer.append(line)
         self.tick()
 
