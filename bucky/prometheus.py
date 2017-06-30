@@ -42,7 +42,7 @@ class PrometheusClient(client.Client):
                 response = ''.join(self.get_or_render_line(k) for k in self.buffer.keys())
                 req.wfile.write(response.encode())
 
-        handler = type('PrometheusHandler', (_http.BaseHTTPRequestHandler,), {'do_GET': do_GET})
+        handler = type('PrometheusHandler', (_http.BaseHTTPRequestHandler, object), {'do_GET': do_GET})
         server = _http.HTTPServer(('0.0.0.0', self.port), handler)
         threading.Thread(target=lambda: server.serve_forever()).start()
         super(PrometheusClient, self).run()
