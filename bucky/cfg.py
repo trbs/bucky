@@ -86,6 +86,11 @@ influxdb_hosts = [
     "127.0.0.1:8089"
 ]
 
+prometheus_enabled = False
+prometheus_port = 9090
+prometheus_timeout = 60
+prometheus_path = 'metrics'
+
 full_trace = False
 
 name_prefix = None

@@ -39,6 +39,7 @@ import bucky.statsd as statsd
 import bucky.systemstats as systemstats
 import bucky.dockerstats as dockerstats
 import bucky.influxdb as influxdb
+import bucky.prometheus as prometheus
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -133,6 +134,11 @@ def options():
             "--enable-influxdb", dest="influxdb_enabled",
             default=cfg.influxdb_enabled, action="store_true",
             help="Enable the InfluxDB line protocol client"
+        ),
+        op.make_option(
+            "--enable-prometheus", dest="prometheus_enabled",
+            default=cfg.prometheus_enabled, action="store_true",
+            help="Enable the Prometheus exposition via HTTP"
         ),
         op.make_option(
             "--enable-system-stats", dest="system_stats_enabled",
@@ -316,6 +322,8 @@ class Bucky(object):
             requested_clients.append(carbon_client)
         if cfg.influxdb_enabled:
             requested_clients.append(influxdb.InfluxDBClient)
+        if cfg.prometheus_enabled:
+            requested_clients.append(prometheus.PrometheusClient)
 
         self.clients = []
         for client in requested_clients:
