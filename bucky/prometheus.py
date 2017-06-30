@@ -37,10 +37,10 @@ class PrometheusClient(client.Client):
                 req.end_headers()
             else:
                 req.send_response(200)
-                req.send_header("Content-type", "text/plain")
+                req.send_header("Content-Type", "text/plain; version=0.0.4")
                 req.end_headers()
-                for k in self.buffer.keys():
-                    req.wfile.write(self.get_or_render_line(k).encode())
+                response = ''.join(self.get_or_render_line(k) for k in self.buffer.keys())
+                req.wfile.write(response.encode())
 
         handler = type('PrometheusHandler', (_http.BaseHTTPRequestHandler,), {'do_GET': do_GET})
         server = _http.HTTPServer(('0.0.0.0', self.port), handler)
@@ -56,7 +56,9 @@ class PrometheusClient(client.Client):
             # https://prometheus.io/docs/instrumenting/exposition_formats/
             name, metadata = k[0], k[1:]
             metadata_str = ','.join(str(k) + '="' + str(v) + '"' for k, v in metadata)
-            line = name + '{' + metadata_str + '} ' + str(value) + ' ' + str(long(timestamp) * 1000) + '\r\n'
+            # Lines MUST end with \n (not \r\n), the last line MUST also end with \n
+            # Otherwise, Prometheus will reject the whole scrape!
+            line = name + '{' + metadata_str + '} ' + str(value) + ' ' + str(long(timestamp) * 1000) + '\n'
             self.buffer[k] = timestamp, value, line
         return line
 
@@ -67,7 +69,7 @@ class PrometheusClient(client.Client):
             for k in self.buffer.keys():
                 timestamp, value, line = self.buffer[k]
                 if (now - timestamp) > self.timeout:
-                    keys_to_remove.append[k]
+                    keys_to_remove.append(k)
             for k in keys_to_remove:
                 del self.buffer[k]
             self.flush_timestamp = now
