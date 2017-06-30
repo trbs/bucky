@@ -34,7 +34,7 @@ class StatsCollector(multiprocessing.Process):
     def collect(self):
         raise NotImplementedError()
 
-    def add_stat(self, name, value, timestamp, **metadata):
+    def add_stat(self, metric_name, metric_value, timestamp, **metadata):
         if metadata:
             if self.metadata:
                 metadata.update(self.metadata)
@@ -42,9 +42,9 @@ class StatsCollector(multiprocessing.Process):
             metadata = self.metadata
         if metadata:
             metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
-            self.queue.put((None, name, value, timestamp, metadata_tuple))
+            self.queue.put((None, metric_name, metric_value, timestamp, metadata_tuple))
         else:
-            self.queue.put((None, name, value, timestamp))
+            self.queue.put((None, metric_name, metric_value, timestamp))
 
     def merge_dicts(self, *dicts):
         ret = {}
