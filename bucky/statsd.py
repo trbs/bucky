@@ -154,7 +154,7 @@ class StatsDServer(udpserver.UDPServer):
             log.exception("StatsD: IOError")
         else:
             for gauge_name, gauge_metadata, gauge_value in gauges:
-                k = (gauge_name, tuple(gauge_metadata))
+                k = (gauge_name, tuple(gauge_metadata) if gauge_metadata else None)
                 self.gauges[k] = gauge_value
                 self.keys_seen.add(k)
 
@@ -226,7 +226,7 @@ class StatsDServer(udpserver.UDPServer):
         # No hostnames on statsd
         metadata = self.coalesce_metadata(metadata)
         if metadata:
-            if name and not 'name' in metadata:
+            if name and not ('name' in metadata):
                 metadata['name'] = name
             metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
             self.queue.put((None, bucket, value, stime, metadata_tuple))
