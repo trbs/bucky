@@ -35,7 +35,7 @@ class DockerStatsCollector(collector.StatsCollector):
 
     def read_cpu_stats(self, now, labels, stats):
         for k, v in enumerate(stats[u'percpu_usage']):
-            self.add_stat("docker_cpu", {'usage': long(v)}, now, instance=k, **labels)
+            self.add_stat("docker_cpu", {'usage': long(v)}, now, name=k, **labels)
 
     def read_interface_stats(self, now, labels, stats):
         for k in stats.keys():
@@ -45,7 +45,7 @@ class DockerStatsCollector(collector.StatsCollector):
                 u'tx_bytes', u'tx_packets', u'tx_errors', u'tx_dropped'
             )
             docker_interface_stats = {k: long(v[k]) for k in keys}
-            self.add_stat("docker_interface", docker_interface_stats, now, instance=k, **labels)
+            self.add_stat("docker_interface", docker_interface_stats, now, name=k, **labels)
 
     def read_memory_stats(self, now, labels, stats):
         self.add_stat("docker_memory", {'used_bytes': long(stats[u'usage'])}, now, **labels)

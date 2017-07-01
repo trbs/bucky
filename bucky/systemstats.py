@@ -72,7 +72,7 @@ class SystemStatsCollector(collector.StatsCollector):
                     if not cpu_suffix:
                         continue
                     cpu_stats = {k: long(v) for k, v in zip(self.CPU_FIELDS, tokens[1:])}
-                    self.add_stat("system_cpu", cpu_stats, now, instance=cpu_suffix)
+                    self.add_stat("system_cpu", cpu_stats, now, name=cpu_suffix)
             if processes_stats:
                 self.add_stat("system_processes", processes_stats, now)
 
@@ -101,7 +101,7 @@ class SystemStatsCollector(collector.StatsCollector):
                         'free_inodes': long(stats.f_favail),
                         'total_inodes': total_inodes
                     }
-                    self.add_stat("system_filesystem", df_stats, now, target=mount_target, instance=mount_path, type=mount_filesystem)
+                    self.add_stat("system_filesystem", df_stats, now, device=mount_target, name=mount_path, type=mount_filesystem)
                 except OSError:
                     pass
 
@@ -127,7 +127,7 @@ class SystemStatsCollector(collector.StatsCollector):
                     'tx_errors': long(tokens[11]),
                     'tx_dropped': long(tokens[12])
                 }
-                self.add_stat("system_interface", interface_stats, now, instance=interface_name)
+                self.add_stat("system_interface", interface_stats, now, name=interface_name)
 
     def read_load_stats(self):
         now = int(time.time())
@@ -191,4 +191,4 @@ class SystemStatsCollector(collector.StatsCollector):
                     'io_time': long(tokens[12]),
                     'weighted_time': long(tokens[13])
                 }
-                self.add_stat("system_disk", disk_stats, now, instance=disk_name)
+                self.add_stat("system_disk", disk_stats, now, name=disk_name)
