@@ -23,7 +23,8 @@ import multiprocessing
 import hmac
 from hashlib import sha1
 from hashlib import sha256
-from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 try:
     from setproctitle import setproctitle
@@ -267,6 +268,7 @@ class CollectDCrypto(object):
         self.auth_file = cfg.collectd_auth_file
         self.auth_db = {}
         self.cfg_mon = None
+        self.crypto_backend = default_backend()
         if self.auth_file:
             self.load_auth_file()
             self.cfg_mon = FileMonitor(self.auth_file)
@@ -354,7 +356,9 @@ class CollectDCrypto(object):
         key = sha256(password).digest()
         pad_bytes = 16 - (len(data) % 16)
         data += b'\0' * pad_bytes
-        data = AES.new(key, IV=iv, mode=AES.MODE_OFB).decrypt(data)
+        cipher = Cipher(algorithms.AES(key), modes.OFB(iv), backend=self.crypto_backend)
+        decryptor = cipher.decryptor()
+        data = decryptor.update(data)
         data = data[:-pad_bytes]
         tag, data = data[:20], data[20:]
         tag2 = sha1(data).digest()

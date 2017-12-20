@@ -1,4 +1,4 @@
 six
 setproctitle
-pycrypto
+cryptography
 watchdog
