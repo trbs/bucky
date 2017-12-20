@@ -66,7 +66,7 @@ class InfluxDBClient(client.Client):
     def close(self):
         try:
             self.sock.close()
-        except:
+        except Exception:
             pass
 
     def kv(self, k, v):

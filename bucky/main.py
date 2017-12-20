@@ -244,7 +244,7 @@ def main():
     if cfg.directory and not os.path.isdir(cfg.directory):
         try:
             os.makedirs(cfg.directory)
-        except:
+        except Exception:
             log.exception("Could not create directory: %s" % cfg.directory)
 
     bucky = Bucky(cfg)

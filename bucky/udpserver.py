@@ -84,7 +84,7 @@ class UDPServer(multiprocessing.Process):
                 break
         try:
             self.pre_shutdown()
-        except:
+        except Exception:
             log.exception("Failed pre_shutdown method for %s",
                           self.__class__.__name__)
 

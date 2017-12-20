@@ -388,7 +388,7 @@ class CollectDConverter(object):
             if name_parts is None:
                 return  # treat None as "ignore sample"
             name = '.'.join(name_parts)
-        except:
+        except Exception:
             log.exception("Exception in sample handler  %s (%s):", sample["plugin"], handler)
             return
         host = sample.get("host", "")

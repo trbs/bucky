@@ -389,14 +389,14 @@ class StatsDHandler(threading.Thread):
             val = float(fields[0] or 0)
             with self.lock:
                 self.timers.setdefault(key, []).append(val)
-        except:
+        except Exception:
             self.bad_line()
 
     def handle_gauge(self, key, fields):
         valstr = fields[0] or "0"
         try:
             val = float(valstr)
-        except:
+        except Exception:
             self.bad_line()
             return
         delta = valstr[0] in ["+", "-"]
@@ -418,11 +418,11 @@ class StatsDHandler(threading.Thread):
         if len(fields) > 2 and fields[2][:1] == "@":
             try:
                 rate = float(fields[2][1:].strip())
-            except:
+            except Exception:
                 rate = 1.0
         try:
             val = int(float(fields[0] or 0) / rate)
-        except:
+        except Exception:
             self.bad_line()
             return
         with self.lock:

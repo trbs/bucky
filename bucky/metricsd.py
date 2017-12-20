@@ -223,7 +223,7 @@ class MetricsDServer(UDPServer):
                 raise ConfigError("Invalid handler specification: %s" % item)
             try:
                 pattern = re.compile(pattern)
-            except:
+            except Exception:
                 raise ConfigError("Invalid pattern: %s" % pattern)
             if interval < 0:
                 raise ConfigError("Invalid interval: %s" % interval)
