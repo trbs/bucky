@@ -6,6 +6,7 @@ uid = None
 gid = None
 directory = "/var/lib/bucky"
 process_join_timeout = 2
+max_sample_queue = 0
 
 sentry_enabled = False
 sentry_dsn = None
