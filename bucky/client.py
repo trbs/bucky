@@ -37,12 +37,29 @@ class Client(multiprocessing.Process):
         setproctitle("bucky: %s" % self.__class__.__name__)
         while True:
             try:
+                if not self.pipe.poll(1):
+                    self.tick()
+                    continue
                 sample = self.pipe.recv()
             except KeyboardInterrupt:
                 continue
             if sample is None:
                 break
-            self.send(*sample)
+            if type(sample[2]) is dict:
+                self.send_bulk(*sample)
+            else:
+                self.send(*sample)
 
     def send(self, host, name, value, time, metadata=None):
         raise NotImplementedError()
+
+    def send_bulk(self, host, name, value, time, metadata=None):
+        for k in value.keys():
+            if name.endswith('.'):
+                metric_name = name + k
+            else:
+                metric_name = name + '.' + k
+            self.send(host, metric_name, value[k], time, metadata)
+
+    def tick(self):
+        pass

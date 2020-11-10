@@ -8,6 +8,8 @@ directory = "/var/lib/bucky"
 process_join_timeout = 2
 max_sample_queue = 0
 
+metadata = []
+
 sentry_enabled = False
 sentry_dsn = None
 sentry_log_level = "WARNING"
@@ -35,7 +37,6 @@ statsd_ip = "127.0.0.1"
 statsd_port = 8125
 statsd_enabled = True
 statsd_flush_time = 10.0
-statsd_metadata = {}
 statsd_legacy_namespace = True
 statsd_global_prefix = "stats"
 statsd_prefix_counter = "counters"
@@ -49,11 +50,15 @@ statsd_delete_idlestats = False
 statsd_delete_counters = True
 statsd_delete_timers = True
 statsd_delete_sets = True
-# statsd_delete_gauges = False
-# `statsd_delete_gauges = True` would make gauges in practice useless,
-# except if you get an absolute(!) value every flush-interval which would makes this setting irrelevant
-statsd_onlychanged_gauges = True
+# `statsd_delete_gauges = True` would make gauges in practice useless, except if you get an absolute(!)
+# value every flush-interval which would makes this setting irrelevant, so this option doesn't exist.
 # send gauge value to graphite only if there was a change
+statsd_onlychanged_gauges = True
+# Disable this only if you want "bad line" be reported for lines with DataDog extensions
+statsd_ignore_datadog_extensions = True
+statsd_ignore_internal_stats = False
+# Use metadata name=NAME instead of the original/legacy naming scheme
+statsd_metadata_namespace = False
 
 statsd_percentile_thresholds = [90]  # percentile thresholds for statsd timers
 
@@ -82,6 +87,11 @@ influxdb_hosts = [
     "127.0.0.1:8089"
 ]
 
+prometheus_enabled = False
+prometheus_port = 9090
+prometheus_timeout = 60
+prometheus_path = 'metrics'
+
 full_trace = False
 
 name_prefix = None
@@ -92,7 +102,18 @@ name_replace_char = '_'
 name_strip_duplicates = True
 name_host_trim = []
 
-custom_clients = []
+system_stats_enabled = False
+system_stats_interval = 10
+system_stats_filesystem_blacklist = ['tmpfs', 'aufs', 'rootfs', 'devtmpfs']
+system_stats_filesystem_whitelist = None
+system_stats_interface_blacklist = None
+system_stats_interface_whitelist = None
+system_stats_disk_blacklist = ['loop0', 'loop1', 'loop2', 'loop3', 'loop4', 'loop5', 'loop6', 'loop7']
+system_stats_disk_whitelist = None
+
+docker_stats_enabled = False
+docker_stats_interval = 10
+docker_stats_version = '1.22'
 
 processor = None
 processor_drop_on_error = False

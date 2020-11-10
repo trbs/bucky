@@ -67,9 +67,9 @@ def make_name(parts):
     return name
 
 
-class StatsDHandler(threading.Thread):
+class StatsDServer(udpserver.UDPServer):
     def __init__(self, queue, cfg):
-        super(StatsDHandler, self).__init__()
+        super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
         self.daemon = True
         self.queue = queue
         self.cfg = cfg
@@ -85,14 +85,23 @@ class StatsDHandler(threading.Thread):
         self.prefix_timer = cfg.statsd_prefix_timer
         self.prefix_gauge = cfg.statsd_prefix_gauge
         self.prefix_set = cfg.statsd_prefix_set
-        self.metadata = cfg.statsd_metadata
+        self.metadata_dict = cfg.metadata if cfg.metadata else {}
+        self.metadata_tuple = tuple((k, self.metadata_dict[k]) for k in sorted(self.metadata_dict.keys()))
         self.key_res = (
             (re.compile("\s+"), "_"),
             (re.compile("\/"), "-"),
             (re.compile("[^a-zA-Z_\-0-9\.]"), "")
         )
 
-        if self.legacy_namespace:
+        self.enqueue = self.enqueue_with_dotted_names
+        if cfg.statsd_metadata_namespace:
+            self.name_global = self.global_prefix
+            self.name_counter = self.global_prefix + self.prefix_counter
+            self.name_timer = self.global_prefix + self.prefix_timer
+            self.name_gauge = self.global_prefix + self.prefix_gauge
+            self.name_set = self.global_prefix + self.prefix_set
+            self.enqueue = self.enqueue_with_metadata_names
+        elif self.legacy_namespace:
             self.name_global = 'stats.'
             self.name_legacy_rate = 'stats.'
             self.name_legacy_count = 'stats_counts.'
@@ -111,12 +120,14 @@ class StatsDHandler(threading.Thread):
 
         self.pct_thresholds = cfg.statsd_percentile_thresholds
 
-        self.keys_seen = {}
+        self.keys_seen = set()
         self.delete_idlestats = cfg.statsd_delete_idlestats
         self.delete_counters = self.delete_idlestats and cfg.statsd_delete_counters
         self.delete_timers = self.delete_idlestats and cfg.statsd_delete_timers
         self.delete_sets = self.delete_idlestats and cfg.statsd_delete_sets
         self.onlychanged_gauges = self.delete_idlestats and cfg.statsd_onlychanged_gauges
+        self.ignore_datadog_extensions = cfg.statsd_ignore_datadog_extensions
+        self.ignore_internal_stats = cfg.statsd_ignore_internal_stats
 
         self.enable_timer_mean = cfg.statsd_timer_mean
         self.enable_timer_upper = cfg.statsd_timer_upper
@@ -127,6 +138,9 @@ class StatsDHandler(threading.Thread):
         self.enable_timer_sum_squares = cfg.statsd_timer_sum_squares
         self.enable_timer_median = cfg.statsd_timer_median
         self.enable_timer_std = cfg.statsd_timer_std
+
+    def pre_shutdown(self):
+        self.save_gauges()
 
     def load_gauges(self):
         if not self.statsd_persistent_gauges:
@@ -139,71 +153,100 @@ class StatsDHandler(threading.Thread):
         except IOError:
             log.exception("StatsD: IOError")
         else:
-            self.gauges.update({k: gauges[k][0] for k in gauges.keys()})
-            self.keys_seen.update({k: gauges[k][1] for k in gauges.keys()})
+            for gauge_name, gauge_metadata, gauge_value in gauges:
+                k = (gauge_name, tuple(gauge_metadata) if gauge_metadata else None)
+                self.gauges[k] = gauge_value
+                self.keys_seen.add(k)
 
     def save_gauges(self):
         if not self.statsd_persistent_gauges:
             return
         try:
-            gauges = {}
+            gauges = []
             for k in self.gauges.keys():
-                gauges[k] = (self.gauges[k], self.keys_seen.get(k, None))
+                gauge_name, gauge_metadata = k
+                gauges.append((gauge_name, gauge_metadata, self.gauges[k]))
             write_json_file(self.gauges_filename, gauges)
         except IOError:
             log.exception("StatsD: IOError")
 
     def tick(self):
-        name_global_numstats = self.name_global + "numStats"
         stime = int(time.time())
         with self.lock:
             if self.delete_timers:
-                rem_keys = set(self.timers.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.timers.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.timers[k]
             if self.delete_counters:
-                rem_keys = set(self.counters.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.counters.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.counters[k]
             if self.delete_sets:
-                rem_keys = set(self.sets.keys()) - set(self.keys_seen.keys())
+                rem_keys = set(self.sets.keys()) - self.keys_seen
                 for k in rem_keys:
                     del self.sets[k]
             num_stats = self.enqueue_timers(stime)
-            kept_keys = set(self.timers.keys())
             num_stats += self.enqueue_counters(stime)
-            kept_keys = kept_keys.union(set(self.counters.keys()))
             num_stats += self.enqueue_gauges(stime)
-            kept_keys = kept_keys.union(set(self.gauges.keys()))
             num_stats += self.enqueue_sets(stime)
-            kept_keys = kept_keys.union(set(self.sets.keys()))
-            self.enqueue(name_global_numstats, num_stats, stime)
-            self.keys_seen = {k: self.keys_seen[k] for k in kept_keys if k in self.keys_seen}
+            if not self.ignore_internal_stats:
+                self.enqueue(self.name_global, None, {"numStats": num_stats}, stime)
+            self.keys_seen = set()
 
     def run(self):
-        while True:
-            time.sleep(self.flush_time)
-            self.tick()
+        def flush_loop():
+            while True:
+                time.sleep(self.flush_time)
+                self.tick()
+        self.load_gauges()
+        threading.Thread(target=flush_loop).start()
+        super(StatsDServer, self).run()
 
-    def enqueue(self, name, stat, stime, metadata_key=None):
+    def coalesce_metadata(self, metadata):
+        if not metadata:
+            return self.metadata_dict
+        if self.metadata_dict:
+            tmp = self.metadata_dict.copy()
+            tmp.update(metadata)
+            return tmp
+        return dict(metadata)
+
+    def enqueue_with_dotted_names(self, bucket, name, value, stime, metadata=None):
         # No hostnames on statsd
-        if metadata_key:
-            metadata = self.keys_seen.get(metadata_key, None)
-        else:
-            metadata = self.metadata
+        if name:
+            bucket += name
+        metadata = self.coalesce_metadata(metadata)
         if metadata:
-            self.queue.put((None, name, stat, stime, metadata))
+            metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
+            self.queue.put((None, bucket, value, stime, metadata_tuple))
         else:
-            self.queue.put((None, name, stat, stime))
+            self.queue.put((None, bucket, value, stime))
+
+    def enqueue_with_metadata_names(self, bucket, name, value, stime, metadata=None):
+        # No hostnames on statsd
+        metadata = self.coalesce_metadata(metadata)
+        if metadata:
+            if name and not ('name' in metadata):
+                metadata['name'] = name
+            metadata_tuple = tuple((k, metadata[k]) for k in sorted(metadata.keys()))
+            self.queue.put((None, bucket, value, stime, metadata_tuple))
+        else:
+            if name:
+                self.queue.put((None, bucket, value, stime, (('name', name),)))
+            else:
+                self.queue.put((None, bucket, value, stime))
 
     def enqueue_timers(self, stime):
         ret = 0
         iteritems = self.timers.items() if six.PY3 else self.timers.iteritems()
         for k, v in iteritems:
+            timer_name, timer_metadata = k
+            timer_stats = {}
+
             # Skip timers that haven't collected any values
             if not v:
-                self.enqueue("%s%s.count" % (self.name_timer, k), 0, stime, k)
-                self.enqueue("%s%s.count_ps" % (self.name_timer, k), 0.0, stime, k)
+                timer_stats['count'] = 0
+                timer_stats['count_ps'] = 0.0
             else:
                 v.sort()
                 count = len(v)
@@ -225,58 +268,63 @@ class StatsDHandler(threading.Thread):
                     vsum = cumulative_values[thresh_idx - 1]
 
                     t = int(pct_thresh)
+                    t_suffix = "_%s" % (t,)
                     if self.enable_timer_mean:
                         mean = vsum / float(thresh_idx)
-                        self.enqueue("%s%s.mean_%s" % (self.name_timer, k, t), mean, stime, k)
+                        timer_stats["mean" + t_suffix] = mean
 
                     if self.enable_timer_upper:
                         vthresh = v[thresh_idx - 1]
-                        self.enqueue("%s%s.upper_%s" % (self.name_timer, k, t), vthresh, stime, k)
+                        timer_stats["upper" + t_suffix] = vthresh
 
                     if self.enable_timer_count:
-                        self.enqueue("%s%s.count_%s" % (self.name_timer, k, t), thresh_idx, stime, k)
+                        timer_stats["count" + t_suffix] = thresh_idx
 
                     if self.enable_timer_sum:
-                        self.enqueue("%s%s.sum_%s" % (self.name_timer, k, t), vsum, stime, k)
+                        timer_stats["sum" + t_suffix] = vsum
 
                     if self.enable_timer_sum_squares:
                         vsum_squares = cumul_sum_squares_values[thresh_idx - 1]
-                        self.enqueue("%s%s.sum_squares_%s" % (self.name_timer, k, t), vsum_squares, stime, k)
+                        timer_stats["sum_squares" + t_suffix] = vsum_squares
 
                 vsum = cumulative_values[count - 1]
                 mean = vsum / float(count)
 
                 if self.enable_timer_mean:
-                    self.enqueue("%s%s.mean" % (self.name_timer, k), mean, stime, k)
+                    timer_stats["mean"] = mean
 
                 if self.enable_timer_upper:
-                    self.enqueue("%s%s.upper" % (self.name_timer, k), vmax, stime, k)
+                    timer_stats["upper"] = vmax
 
                 if self.enable_timer_lower:
-                    self.enqueue("%s%s.lower" % (self.name_timer, k), vmin, stime, k)
+                    timer_stats["lower"] = vmin
 
                 if self.enable_timer_count:
-                    self.enqueue("%s%s.count" % (self.name_timer, k), count, stime, k)
+                    timer_stats["count"] = count
 
                 if self.enable_timer_count_ps:
-                    self.enqueue("%s%s.count_ps" % (self.name_timer, k), float(count) / self.flush_time, stime, k)
+                    timer_stats["count_ps"] = float(count) / self.flush_time
 
                 if self.enable_timer_median:
                     mid = int(count / 2)
                     median = (v[mid - 1] + v[mid]) / 2.0 if count % 2 == 0 else v[mid]
-                    self.enqueue("%s%s.median" % (self.name_timer, k), median, stime, k)
+                    timer_stats["median"] = median
 
                 if self.enable_timer_sum:
-                    self.enqueue("%s%s.sum" % (self.name_timer, k), vsum, stime, k)
+                    timer_stats["sum"] = vsum
 
                 if self.enable_timer_sum_squares:
                     vsum_squares = cumul_sum_squares_values[count - 1]
-                    self.enqueue("%s%s.sum_squares" % (self.name_timer, k), vsum_squares, stime, k)
+                    timer_stats["sum_squares"] = vsum_squares
 
                 if self.enable_timer_std:
                     sum_of_diffs = sum(((value - mean) ** 2 for value in v))
                     stddev = math.sqrt(sum_of_diffs / count)
-                    self.enqueue("%s%s.std" % (self.name_timer, k), stddev, stime, k)
+                    timer_stats["std"] = stddev
+
+            if timer_stats:
+                self.enqueue(self.name_timer, timer_name, timer_stats, stime, timer_metadata)
+
             self.timers[k] = []
             ret += 1
 
@@ -286,7 +334,8 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.sets.items() if six.PY3 else self.sets.iteritems()
         for k, v in iteritems:
-            self.enqueue("%s%s.count" % (self.name_set, k), len(v), stime, k)
+            set_name, set_metadata = k
+            self.enqueue(self.name_set, set_name, {"count": len(v)}, stime, set_metadata)
             ret += 1
             self.sets[k] = set()
         return ret
@@ -295,9 +344,10 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.gauges.items() if six.PY3 else self.gauges.iteritems()
         for k, v in iteritems:
+            gauge_name, gauge_metadata = k
             # only send a value if there was an update if `delete_idlestats` is `True`
             if not self.onlychanged_gauges or k in self.keys_seen:
-                self.enqueue("%s%s" % (self.name_gauge, k), v, stime, k)
+                self.enqueue(self.name_gauge, gauge_name, v, stime, gauge_metadata)
                 ret += 1
         return ret
 
@@ -305,50 +355,58 @@ class StatsDHandler(threading.Thread):
         ret = 0
         iteritems = self.counters.items() if six.PY3 else self.counters.iteritems()
         for k, v in iteritems:
+            counter_name, counter_metadata = k
             if self.legacy_namespace:
-                stat_rate = "%s%s" % (self.name_legacy_rate, k)
-                stat_count = "%s%s" % (self.name_legacy_count, k)
+                self.enqueue(self.name_legacy_rate, counter_name, v / self.flush_time, stime, counter_metadata)
+                self.enqueue(self.name_legacy_count, counter_name, v, stime, counter_metadata)
             else:
-                stat_rate = "%s%s.rate" % (self.name_counter, k)
-                stat_count = "%s%s.count" % (self.name_counter, k)
-            self.enqueue(stat_rate, v / self.flush_time, stime, k)
-            self.enqueue(stat_count, v, stime, k)
+                stats = {
+                    'rate': v / self.flush_time,
+                    'count': v
+                }
+                self.enqueue(self.name_counter, counter_name, stats, stime, counter_metadata)
             self.counters[k] = 0
             ret += 1
         return ret
 
-    def handle(self, data):
+    def handle(self, data, addr):
         # Adding a bit of extra sauce so clients can
         # send multiple samples in a single UDP
         # packet.
+        if six.PY3:
+            data = data.decode()
         for line in data.splitlines():
             self.line = line
             if not line.strip():
                 continue
             self.handle_line(line)
+        return True
 
-    def handle_tags(self, line):
+    def handle_metadata(self, line):
         # http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
         bits = line.split("#")
         if len(bits) < 2:
             return line, None
-        tags = {}
+        metadata = {}
         for i in bits[1].split(","):
             kv = i.split("=")
             if len(kv) > 1:
-                tags[kv[0]] = kv[1]
+                metadata[kv[0]] = kv[1]
             else:
                 kv = i.split(":")
                 if len(kv) > 1:
-                    tags[kv[0]] = kv[1]
+                    metadata[kv[0]] = kv[1]
                 else:
-                    tags[kv[0]] = None
-        return bits[0], tags
+                    metadata[kv[0]] = None
+        return bits[0], tuple((k, metadata[k]) for k in sorted(metadata.keys()))
 
     def handle_line(self, line):
-        line, tags = self.handle_tags(line)
+        if self.ignore_datadog_extensions:
+            if line.startswith('sc|') or line.startswith('_e{'):
+                return
+        line, metadata = self.handle_metadata(line)
         bits = line.split(":")
-        key = self.handle_key(bits.pop(0), tags)
+        key = self.handle_key(bits.pop(0), metadata)
 
         if not bits:
             self.bad_line()
@@ -372,16 +430,11 @@ class StatsDHandler(threading.Thread):
             else:
                 self.handle_counter(key, fields)
 
-    def handle_key(self, key, tags=None):
-        if tags is None:
-            coalesced_tags = self.metadata
-        else:
-            coalesced_tags = tags
-            if self.metadata:
-                coalesced_tags.update(self.metadata)
+    def handle_key(self, key, metadata):
         for (rexp, repl) in self.key_res:
             key = rexp.sub(repl, key)
-        self.keys_seen[key] = coalesced_tags
+        key = (key, metadata)
+        self.keys_seen.add(key)
         return key
 
     def handle_timer(self, key, fields):
@@ -432,30 +485,3 @@ class StatsDHandler(threading.Thread):
 
     def bad_line(self):
         log.error("StatsD: Invalid line: '%s'", self.line.strip())
-
-
-class StatsDServer(udpserver.UDPServer):
-    def __init__(self, queue, cfg):
-        super(StatsDServer, self).__init__(cfg.statsd_ip, cfg.statsd_port)
-        self.handler = StatsDHandler(queue, cfg)
-
-    def pre_shutdown(self):
-        self.handler.save_gauges()
-
-    def run(self):
-        self.handler.load_gauges()
-        self.handler.start()
-        super(StatsDServer, self).run()
-
-    if six.PY3:
-        def handle(self, data, addr):
-            self.handler.handle(data.decode())
-            if not self.handler.is_alive():
-                return False
-            return True
-    else:
-        def handle(self, data, addr):
-            self.handler.handle(data)
-            if not self.handler.is_alive():
-                return False
-            return True

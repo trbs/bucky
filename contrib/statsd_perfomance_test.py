@@ -20,14 +20,14 @@ l1000 = range(1000)
 
 queue = multiprocessing.Queue()
 
-handler = bucky.statsd.StatsDHandler(queue, bucky.cfg)
+handler = bucky.statsd.StatsDServer(queue, bucky.cfg)
 
 
 def fill_and_compute_timers(handler):
     # Fill timers
     for x in l100:  # timer name
         for y in l1000:  # timer value, using random value is not good idea there
-            handler.handle_timer("timer-%s" % (x), [y])
+            handler.handle_timer(("timer-%s" % (x,), ()), [y])
 
     # Compute metrics
     stime = int(time.time())

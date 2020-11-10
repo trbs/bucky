@@ -36,7 +36,10 @@ import bucky.carbon as carbon
 import bucky.collectd as collectd
 import bucky.metricsd as metricsd
 import bucky.statsd as statsd
+import bucky.systemstats as systemstats
+import bucky.dockerstats as dockerstats
 import bucky.influxdb as influxdb
+import bucky.prometheus as prometheus
 import bucky.processor as processor
 from bucky.errors import BuckyError
 
@@ -133,6 +136,21 @@ def options():
             help="Enable the InfluxDB line protocol client"
         ),
         op.make_option(
+            "--enable-prometheus", dest="prometheus_enabled",
+            default=cfg.prometheus_enabled, action="store_true",
+            help="Enable the Prometheus exposition via HTTP"
+        ),
+        op.make_option(
+            "--enable-system-stats", dest="system_stats_enabled",
+            default=cfg.system_stats_enabled, action="store_true",
+            help="Enable collection of local system stats"
+        ),
+        op.make_option(
+            "--enable-docker-stats", dest="docker_stats_enabled",
+            default=cfg.docker_stats_enabled, action="store_true",
+            help="Enable collection of docker containers stats"
+        ),
+        op.make_option(
             "--full-trace", dest="full_trace",
             default=cfg.full_trace, action="store_true",
             help="Display full error if config file fails to load"
@@ -157,6 +175,7 @@ def options():
             type="str", default=cfg.gid,
             help="Drop privileges to this group"
         ),
+        op.make_option("--metadata", action="append", dest="metadata")
     ]
 
 
@@ -247,6 +266,21 @@ def main():
         except Exception:
             log.exception("Could not create directory: %s" % cfg.directory)
 
+    # This in place swap from list to dict is hideous :-|
+    metadata = {}
+    if cfg.metadata:
+        for i in cfg.metadata:
+            kv = i.split("=")
+            if len(kv) > 1:
+                metadata[kv[0]] = kv[1]
+            else:
+                kv = i.split(":")
+                if len(kv) > 1:
+                    metadata[kv[0]] = kv[1]
+                else:
+                    metadata[kv[0]] = None
+    cfg.metadata = metadata
+
     bucky = Bucky(cfg)
     bucky.run()
 
@@ -262,6 +296,10 @@ class Bucky(object):
             stypes.append(collectd.getCollectDServer)
         if cfg.statsd_enabled:
             stypes.append(statsd.StatsDServer)
+        if cfg.system_stats_enabled:
+            stypes.append(systemstats.SystemStatsCollector)
+        if cfg.docker_stats_enabled:
+            stypes.append(dockerstats.DockerStatsCollector)
 
         self.servers = []
         for stype in stypes:
@@ -275,18 +313,20 @@ class Bucky(object):
             self.proc = None
             self.psampleq = self.sampleq
 
-        default_clients = []
+        requested_clients = []
         if cfg.graphite_enabled:
             if cfg.graphite_pickle_enabled:
                 carbon_client = carbon.PickleClient
             else:
                 carbon_client = carbon.PlaintextClient
-            default_clients.append(carbon_client)
+            requested_clients.append(carbon_client)
         if cfg.influxdb_enabled:
-            default_clients.append(influxdb.InfluxDBClient)
+            requested_clients.append(influxdb.InfluxDBClient)
+        if cfg.prometheus_enabled:
+            requested_clients.append(prometheus.PrometheusClient)
 
         self.clients = []
-        for client in cfg.custom_clients + default_clients:
+        for client in requested_clients:
             send, recv = multiprocessing.Pipe()
             instance = client(cfg, recv)
             self.clients.append((instance, send))

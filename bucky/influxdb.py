@@ -69,12 +69,9 @@ class InfluxDBClient(client.Client):
         except Exception:
             pass
 
-    def kv(self, k, v):
-        return str(k) + '=' + str(v)
-
-    def flush(self):
+    def tick(self):
         now = time.time()
-        if len(self.buffer) > 30 or (now - self.flush_timestamp) > 3:
+        if len(self.buffer) > 10 or ((now - self.flush_timestamp) > 1 and len(self.buffer)):
             payload = '\n'.join(self.buffer).encode()
             self.resolve_hosts()
             for ip, port in self.resolved_hosts:
@@ -82,21 +79,36 @@ class InfluxDBClient(client.Client):
             self.buffer = []
             self.flush_timestamp = now
 
-    def send(self, host, name, value, mtime, metadata=None):
-        buf = [name]
-        if host:
-            if metadata is None:
-                metadata = {'host': host}
-            else:
-                if 'host' not in metadata:
-                    metadata['host'] = host
-        if metadata:
-            for k in metadata.keys():
-                v = metadata[k]
-                # InfluxDB will drop insert with tags without values
-                if v is not None:
-                    buf.append(self.kv(k, v))
+    def _send(self, host, name, mtime, values, metadata=None):
         # https://docs.influxdata.com/influxdb/v1.2/write_protocols/line_protocol_tutorial/
-        line = ' '.join((','.join(buf), self.kv('value', value), str(long(mtime) * 1000000000)))
+        label_buf = [name]
+        if not metadata and host:
+            metadata = ('host', host)
+        if metadata:
+            # InfluxDB docs recommend sorting tags
+            for k, v in metadata:
+                # InfluxDB will drop insert with empty tags
+                if v is None or v == '':
+                    continue
+                v = str(v).replace(' ', '')
+                label_buf.append(str(k) + '=' + v)
+        value_buf = []
+        for k in values.keys():
+            v = values[k]
+            t = type(v)
+            if t is long or t is int:
+                value_buf.append(str(k) + '=' + str(v) + 'i')
+            elif t is float or t is bool:
+                value_buf.append(str(k) + '=' + str(v))
+            elif t is str:
+                value_buf.append(str(k) + '="' + v + '"')
+        # So, the lower timestamp precisions don't seem to work with line protocol...
+        line = ' '.join((','.join(label_buf), ','.join(value_buf), str(long(mtime) * 1000000000)))
         self.buffer.append(line)
-        self.flush()
+        self.tick()
+
+    def send(self, host, name, value, mtime, metadata=None):
+        self._send(host, name, mtime, {'value': value}, metadata)
+
+    def send_bulk(self, host, name, value, mtime, metadata=None):
+        self._send(host, name.strip('.'), mtime, value, metadata)

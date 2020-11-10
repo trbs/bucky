@@ -339,10 +339,13 @@ like so::
       enabled = true
       bind-address = ":8089"
       database = "mydatabase"
+      precision = "1s"
 
 Bucky will periodically resolve all hostnames in the `influxdb_hosts`
 list and fan out metrics to all resolved endpoints. Thus providing
 replication as well as hot swapping.
+Note the precision being 1sec, it is currently the maximum precision
+bucky uses when sending data to InfluxDB, hence the setting.
 
 
 A note on CollectD converters

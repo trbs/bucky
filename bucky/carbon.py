@@ -53,7 +53,7 @@ class CarbonClient(client.Client):
         self.backoff_max = cfg.graphite_backoff_max
         if self.max_reconnects <= 0:
             self.max_reconnects = sys.maxint
-        self.connect()
+        self.connected = False
 
     def connect(self):
         if self.debug:
@@ -61,10 +61,11 @@ class CarbonClient(client.Client):
             self.sock = DebugSocket()
             return
         reconnect_delay = self.reconnect_delay
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for i in xrange(self.max_reconnects):
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 self.sock.connect((self.ip, self.port))
+                self.connected = True
                 log.info("Connected to Carbon at %s:%s", self.ip, self.port)
                 return
             except socket.error as e:
@@ -88,9 +89,12 @@ class CarbonClient(client.Client):
             self.sock.close()
         except Exception:
             pass
+        self.connected = False
 
-    def send(self, host, name, value, mtime, metadata=None):
-        raise NotImplementedError()
+    def send_message(self, mesg):
+        if not self.connected:
+            self.connect()
+        self.sock.sendall(mesg)
 
 
 class PlaintextClient(CarbonClient):
@@ -99,7 +103,7 @@ class PlaintextClient(CarbonClient):
         mesg = "%s %s %s\n" % (stat, value, mtime)
         for i in xrange(self.max_reconnects):
             try:
-                self.sock.sendall(mesg)
+                self.send_message(mesg)
                 return
             except socket.error as err:
                 log.error("Failed to send data to Carbon server: %s", err)
@@ -128,7 +132,7 @@ class PickleClient(CarbonClient):
         self.buffer = []
         for i in xrange(self.max_reconnects):
             try:
-                self.sock.sendall(header + payload)
+                self.send_message(header + payload)
                 return
             except socket.error as err:
                 log.error("Failed to send data to Carbon server: %s", err)

@@ -2,3 +2,4 @@ six
 setproctitle
 cryptography
 watchdog
+docker
